@@ -1,0 +1,135 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Trix",
+  "projectDescription": "A WYSIWYG rich text editor for everyday web writing, built on web standards with a custom document model and Custom Elements API.",
+  "theme": "willow",
+  "primaryColor": "#c64a78",
+  "lightColor": "#b42964",
+  "darkColor": "#6870b1",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation", "quickstart"]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/document-model",
+              "concepts/selection-ranges",
+              "concepts/attributes",
+              "concepts/attachments"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-editor",
+              "guides/toolbar-customization",
+              "guides/form-integration",
+              "guides/file-attachments",
+              "guides/styling",
+              "guides/html-sanitization",
+              "guides/accessibility"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": ["contributing/overview", "contributing/building", "contributing/testing"]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Editor API",
+            "pages": [
+              "api/editor",
+              "api/document",
+              "api/attachment"
+            ]
+          },
+          {
+            "group": "Elements",
+            "pages": [
+              "api/trix-editor-element",
+              "api/trix-toolbar-element"
+            ]
+          },
+          {
+            "group": "Events",
+            "pages": ["api/events"]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/config",
+              "api/config-text-attributes",
+              "api/config-block-attributes"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Custom document model — avoids contenteditable/execCommand inconsistencies",
+    "Web Components via Custom Elements (<trix-editor> and <trix-toolbar>)",
+    "Programmatic Editor API for inserting, selecting, and formatting text",
+    "File and image attachment support with drag-and-drop",
+    "Built-in undo/redo with unlimited history",
+    "HTML sanitization via DOMPurify",
+    "Form integration with hidden input and constraint validation",
+    "Accessible — supports labels, aria-label, aria-labelledby, and :disabled",
+    "ESM and UMD distribution formats",
+    "Ruby on Rails / Action Text integration"
+  ],
+  "publicApiSurface": [
+    "Trix.Editor",
+    "Trix.Document",
+    "Trix.Attachment",
+    "Trix.config",
+    "<trix-editor> custom element",
+    "<trix-toolbar> custom element",
+    "editor.getDocument()",
+    "editor.loadHTML(html)",
+    "editor.loadJSON(snapshot)",
+    "editor.insertString(string)",
+    "editor.insertHTML(html)",
+    "editor.insertFile(file)",
+    "editor.insertAttachment(attachment)",
+    "editor.insertLineBreak()",
+    "editor.deleteInDirection(direction)",
+    "editor.getSelectedRange()",
+    "editor.setSelectedRange(range)",
+    "editor.moveCursorInDirection(direction)",
+    "editor.expandSelectionInDirection(direction)",
+    "editor.getClientRectAtPosition(position)",
+    "editor.activateAttribute(name, value)",
+    "editor.deactivateAttribute(name)",
+    "editor.attributeIsActive(name)",
+    "editor.increaseNestingLevel()",
+    "editor.decreaseNestingLevel()",
+    "editor.undo()",
+    "editor.redo()",
+    "editor.recordUndoEntry(description)",
+    "trix-before-initialize event",
+    "trix-initialize event",
+    "trix-change event",
+    "trix-before-render event",
+    "trix-paste event",
+    "trix-before-paste event",
+    "trix-selection-change event",
+    "trix-focus event",
+    "trix-blur event",
+    "trix-file-accept event",
+    "trix-attachment-add event",
+    "trix-attachment-edit event",
+    "trix-attachment-remove event",
+    "trix-action-invoke event"
+  ]
+}
