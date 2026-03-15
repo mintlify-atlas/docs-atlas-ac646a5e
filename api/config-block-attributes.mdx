@@ -1,0 +1,235 @@
+---
+title: Block attributes
+description: Built-in block-level formatting attributes and how to register custom block attributes in Trix.config.blockAttributes.
+---
+
+Block attributes define **block-level** formatting in Trix — headings, quotes, code blocks, and lists. Each attribute maps a name to a descriptor object that controls the HTML element used to render the block, how it interacts with the Return key, and how it nests with other blocks.
+
+```javascript
+import Trix from "trix"
+
+console.log(Trix.config.blockAttributes)
+// {
+//   default:           { tagName: "div",        parse: false },
+//   quote:             { tagName: "blockquote",  nestable: true },
+//   heading1:          { tagName: "h1",          terminal: true, breakOnReturn: true, group: false },
+//   code:              { tagName: "pre",          terminal: true, htmlAttributes: ["language"], text: { plaintext: true } },
+//   bulletList:        { tagName: "ul",           parse: false },
+//   bullet:            { tagName: "li",           listAttribute: "bulletList",  group: false, nestable: true },
+//   numberList:        { tagName: "ol",           parse: false },
+//   number:            { tagName: "li",           listAttribute: "numberList", group: false, nestable: true },
+//   attachmentGallery: { tagName: "div",          exclusive: true, terminal: true, parse: false, group: false },
+// }
+```
+
+## Attribute descriptor properties
+
+<ParamField path="tagName" type="string" required>
+  The HTML element tag used to render this block type. For example, `tagName: "blockquote"` wraps the block in `<blockquote>` tags.
+</ParamField>
+
+<ParamField path="terminal" type="boolean" default="false">
+  When `true`, the block cannot be nested inside other block attributes. Pressing Return at the end of a terminal block (when `breakOnReturn` is also set) exits the block rather than inserting a new line within it.
+</ParamField>
+
+<ParamField path="breakOnReturn" type="boolean" default="false">
+  When `true`, pressing Return at the end of the block exits the block and creates a new default block after it, rather than adding a new line inside the block. Used by `heading1`.
+</ParamField>
+
+<ParamField path="nestable" type="boolean" default="false">
+  When `true`, the block can be nested within other blocks of the same type. Used by `quote`, `bullet`, and `number` to support indented quotes and list nesting.
+</ParamField>
+
+<ParamField path="group" type="boolean" default="true">
+  When `false`, adjacent blocks with this attribute are not merged into a shared wrapper element. `heading1` sets `group: false` so that consecutive headings remain independent elements.
+</ParamField>
+
+<ParamField path="listAttribute" type="string">
+  Name of another block attribute whose `tagName` is the list container for this item. Used by `bullet` (pointing to `bulletList`) and `number` (pointing to `numberList`) to associate list items with their parent `<ul>` or `<ol>`.
+</ParamField>
+
+<ParamField path="htmlAttributes" type="string[]">
+  An array of attribute names that are passed through from the raw HTML to the rendered block element. Used by `code` to preserve the `language` attribute on `<pre>` elements.
+</ParamField>
+
+<ParamField path="text" type="object">
+  An object with text-rendering options for the block.
+
+  <ParamField path="text.plaintext" type="boolean" default="false">
+    When `true`, inline text formatting (bold, italic, etc.) is stripped inside this block. Used by `code` blocks to prevent formatting inside `<pre>`.
+  </ParamField>
+</ParamField>
+
+<ParamField path="exclusive" type="boolean" default="false">
+  When `true`, this block attribute cannot coexist with other block attributes on the same block. Used by `attachmentGallery`.
+</ParamField>
+
+<ParamField path="parse" type="boolean" default="true">
+  When `false`, Trix does not parse this attribute from HTML during document import. Used for internal container types (`default`, `bulletList`, `numberList`, `attachmentGallery`) that should not be inferred from HTML structure.
+</ParamField>
+
+---
+
+## Built-in attributes
+
+### `default`
+
+The implicit block type used for ordinary paragraphs. Every line of text belongs to a block, and blocks without any other attribute use this descriptor.
+
+```javascript
+{
+  tagName: "div",
+  parse: false,
+}
+```
+
+### `quote`
+
+Blockquote. Wraps the block in `<blockquote>`. Nestable, so pressing the indent action inside a quote creates a nested quote.
+
+```javascript
+{
+  tagName: "blockquote",
+  nestable: true,
+}
+```
+
+Default toolbar button: `data-trix-attribute="quote"`.
+
+### `heading1`
+
+First-level heading. Wraps the block in `<h1>`. Terminal and non-grouping, so consecutive headings are independent `<h1>` elements. Pressing Return exits the heading.
+
+```javascript
+{
+  tagName: "h1",
+  terminal: true,
+  breakOnReturn: true,
+  group: false,
+}
+```
+
+Default toolbar button: `data-trix-attribute="heading1"`.
+
+### `code`
+
+Code block. Wraps the block in `<pre>`. Terminal (cannot be nested), and `text.plaintext: true` prevents inline formatting inside the block. The `language` attribute is preserved through the `htmlAttributes` list.
+
+```javascript
+{
+  tagName: "pre",
+  terminal: true,
+  htmlAttributes: ["language"],
+  text: {
+    plaintext: true,
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="code"`.
+
+### `bullet`
+
+Unordered list item. Renders as `<li>` inside a `<ul>` (the `bulletList` attribute). Nestable to support indented list levels.
+
+```javascript
+{
+  tagName: "li",
+  listAttribute: "bulletList",
+  group: false,
+  nestable: true,
+  test(element) {
+    return element.parentNode?.tagName?.toLowerCase() === "ul"
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="bullet"`.
+
+### `number`
+
+Ordered list item. Renders as `<li>` inside an `<ol>` (the `numberList` attribute). Nestable to support indented list levels.
+
+```javascript
+{
+  tagName: "li",
+  listAttribute: "numberList",
+  group: false,
+  nestable: true,
+  test(element) {
+    return element.parentNode?.tagName?.toLowerCase() === "ol"
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="number"`.
+
+### `attachmentGallery`
+
+Internal block type used for attachment gallery layouts. Renders as a `<div>`. Exclusive, terminal, and non-parsed — this attribute is managed internally by Trix and should not be applied by user code.
+
+```javascript
+{
+  tagName: "div",
+  exclusive: true,
+  terminal: true,
+  parse: false,
+  group: false,
+}
+```
+
+---
+
+## Adding custom block attributes
+
+Add new keys to `Trix.config.blockAttributes` inside a `trix-before-initialize` listener, then add a toolbar button with the matching `data-trix-attribute` value.
+
+### Example — heading 2
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.blockAttributes.heading2 = {
+    tagName: "h2",
+    terminal: true,
+    breakOnReturn: true,
+    group: false,
+  }
+
+  const originalGetDefaultHTML = Trix.config.toolbar.getDefaultHTML
+  Trix.config.toolbar.getDefaultHTML = () => {
+    return originalGetDefaultHTML().replace(
+      `data-trix-attribute="heading1"`,
+      `data-trix-attribute="heading1"`
+        + `</button><button type="button" class="trix-button" data-trix-attribute="heading2" title="Heading 2">H2`
+    )
+  }
+})
+```
+
+### Example — nestable block quote with citation style
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.blockAttributes.pullquote = {
+    tagName: "aside",
+    nestable: false,
+    terminal: true,
+    breakOnReturn: true,
+    group: false,
+  }
+})
+```
+
+### Example — code block with language attribute
+
+The built-in `code` attribute already supports the `language` html attribute. You can read and write it via the attachment or block attribute APIs:
+
+```javascript
+// Set the language on the current code block
+editor.activateAttribute("code")
+// The language attribute can be set via custom UI and stored in the document
+```
+
+<Note>
+  Custom block attributes that reuse `<li>` as their `tagName` must also define a corresponding list container attribute (like `bulletList` or `numberList`) and set `listAttribute` to its name. Without a container, Trix cannot render the list structure correctly.
+</Note>

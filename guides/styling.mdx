@@ -1,0 +1,177 @@
+---
+title: "Styling"
+description: "Understand what trix.css covers, use the .trix-content class for consistent WYSIWYG display, customize toolbar appearance, and style attachments."
+---
+
+## What trix.css provides
+
+Including `trix.css` gives you baseline styles for four areas, each in a separate partial:
+
+<CardGroup cols={2}>
+  <Card title="editor.scss" icon="pen-to-square">
+    Styles `<trix-editor>` itself: a 1px `#bbb` border, 3px border radius, `0.4em 0.6em` padding, and a `5em` minimum height.
+  </Card>
+  <Card title="toolbar.scss" icon="bars">
+    Styles `<trix-toolbar>`: button groups, icon buttons, the spacer element, dialog overlays, and the link input field.
+  </Card>
+  <Card title="attachments.scss" icon="paperclip">
+    Styles attachment figures inside the editor: the progress bar, caption editor, remove button, and selection highlight.
+  </Card>
+  <Card title="content.scss" icon="file-lines">
+    Defines `.trix-content` — the shared class for formatted content in both editing and display contexts.
+  </Card>
+</CardGroup>
+
+Skip `trix.css` entirely if you prefer to define all styles yourself.
+
+## The .trix-content class
+
+To ensure what you see while editing matches what is displayed after saving, apply the `trix-content` class to both the editor element and any element that renders the stored output.
+
+```html
+<!-- Editing context -->
+<trix-editor class="trix-content"></trix-editor>
+```
+
+```html
+<!-- Display context (e.g., rendering saved HTML) -->
+<div class="trix-content">Stored content here</div>
+```
+
+The default `.trix-content` styles from `content.scss` cover:
+
+```css
+.trix-content {
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.trix-content h1 {
+  font-size: 1.2em;
+  line-height: 1.2;
+}
+
+.trix-content blockquote {
+  border: 0 solid #ccc;
+  border-left-width: 0.3em;
+  margin-left: 0.3em;
+  padding-left: 0.6em;
+}
+
+.trix-content pre {
+  display: inline-block;
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.9em;
+  padding: 0.5em;
+  white-space: pre;
+  background-color: #eee;
+  overflow-x: auto;
+}
+
+.trix-content li {
+  margin-left: 1em;
+}
+
+.trix-content img {
+  max-width: 100%;
+  height: auto;
+}
+```
+
+<Tip>
+  Copy the `.trix-content` block from `trix.css` into your own stylesheet under a different class name when you want project-specific typography that diverges from the defaults.
+</Tip>
+
+## Scoping editing vs. display styles
+
+Some styles only make sense in one context. Use CSS selectors to target each independently:
+
+```css
+/* Only inside the editor */
+trix-editor.trix-content blockquote {
+  background-color: #fffde7;
+}
+
+/* Only in the display/read context */
+div.trix-content blockquote {
+  font-style: italic;
+}
+```
+
+## Customizing toolbar appearance
+
+The toolbar uses these CSS classes. All are prefixed with `trix-`:
+
+| Class | Purpose |
+|---|---|
+| `.trix-button-row` | Flex row containing all button groups |
+| `.trix-button-group` | A bordered group of related buttons |
+| `.trix-button-group-spacer` | `flex-grow: 1` spacer pushing history tools right |
+| `.trix-button` | Base button style |
+| `.trix-button--icon` | Icon-only button (text indented off screen) |
+| `.trix-button.trix-active` | Applied to a button when its attribute is active |
+| `.trix-dialog` | Floating dialog (e.g., the link URL dialog) |
+| `.trix-input--dialog` | Text input inside a dialog |
+
+Example — increasing button size:
+
+```css
+trix-toolbar .trix-button--icon {
+  width: 3em;
+  height: 2em;
+}
+```
+
+Example — changing the active button highlight color:
+
+```css
+trix-toolbar .trix-button.trix-active {
+  background: #d0f0ff;
+}
+```
+
+## CSS class names for attachments
+
+The following class names come from `src/trix/config/css.js` and are applied to attachment elements inside both the editor and the rendered output:
+
+| Class | Element |
+|---|---|
+| `.attachment` | The outer `<figure>` wrapping each attachment |
+| `.attachment__caption` | Caption below image attachments |
+| `.attachment__caption-editor` | Editable `<textarea>` for the caption |
+| `.attachment__metadata` | Overlay showing filename and size |
+| `.attachment__metadata-container` | Positions the metadata overlay |
+| `.attachment__name` | Filename inside metadata |
+| `.attachment__progress` | `<progress>` element for upload status |
+| `.attachment__size` | File size inside metadata |
+| `.attachment__toolbar` | Remove-button toolbar above the attachment |
+| `.attachment-gallery` | `<div>` wrapping a gallery of multiple images |
+
+### Attachment display variants
+
+Trix adds modifier classes depending on the attachment type:
+
+```css
+/* Image/previewable attachments */
+.trix-content .attachment--preview {
+  width: 100%;
+  text-align: center;
+}
+
+/* File (non-previewable) attachments */
+.trix-content .attachment--file {
+  color: #333;
+  padding: 0.4em 1em;
+  border: 1px solid #bbb;
+  border-radius: 5px;
+}
+
+/* Gallery layout for 2 or 4 images */
+.trix-content .attachment-gallery--2 .attachment,
+.trix-content .attachment-gallery--4 .attachment {
+  flex-basis: 50%;
+  max-width: 50%;
+}
+```

@@ -1,0 +1,186 @@
+---
+title: "Running tests"
+description: "Run the Trix test suite headlessly with Playwright, watch for changes, lint with ESLint, or open tests directly in a browser for debugging."
+---
+
+## Overview
+
+Trix uses [QUnit](https://qunitjs.com/) as its test framework and [@web/test-runner](https://modern-web.dev/docs/test-runner/overview/) to execute tests in real browsers. By default, tests run headlessly in Chromium via Playwright. In CI, they additionally run against Chrome, Firefox, and Edge on SauceLabs.
+
+## Running the test suite
+
+### Headless (default)
+
+Run the full test suite once in a headless Chromium browser:
+
+```bash
+yarn test
+```
+
+<Note>
+  The `pretest` hook runs `yarn lint` and `yarn build` automatically before the tests start. You do not need to build manually before running `yarn test`.
+</Note>
+
+During a local run, the runner prints real-time progress using dot notation:
+
+- `.` — test passed
+- `F` — test failed (details printed immediately)
+- `S` — test skipped
+
+A summary line is printed at the end:
+
+```
+342 tests: 340 passed, 0 failed, 2 skipped.
+```
+
+### Watch mode
+
+Re-run tests automatically whenever source files change:
+
+```bash
+yarn test:watch
+```
+
+Useful when iterating on a specific feature or fixing a failing test.
+
+## Linting
+
+Trix uses ESLint to enforce code style. Linting runs automatically as part of `yarn test`, but you can run it independently:
+
+```bash
+yarn lint
+```
+
+The ESLint configuration is in `babel.config.json` (Babel preset) and the project root ESLint config. Linting covers all JavaScript source files.
+
+<Warning>
+  Linting failures will block `yarn test` from running because `lint` is part of the `pretest` hook. Fix all lint errors before running the full test suite.
+</Warning>
+
+## Test structure
+
+Tests live in `src/test/` and are organized into two suites:
+
+<CardGroup cols={2}>
+  <Card title="Unit tests" icon="microscope">
+    Located in `src/test/unit/`. Test the document model in isolation — documents, blocks, composition, HTML parsing, sanitization, serialization, and more.
+  </Card>
+  <Card title="System tests" icon="browser">
+    Located in `src/test/system/`. End-to-end tests that drive a real browser — basic input, formatting, pasting, cursor movement, attachment handling, accessibility, and custom element behavior.
+  </Card>
+</CardGroup>
+
+### Unit test files
+
+| File | What it tests |
+|------|---------------|
+| `attachment_test.js` | Attachment model |
+| `block_test.js` | Block model and attributes |
+| `composition_test.js` | Composition and editing operations |
+| `document_test.js` | Document model |
+| `document_view_test.js` | Document rendering |
+| `html_parser_test.js` | HTML → document model parsing |
+| `html_sanitizer_test.js` | DOMPurify-based sanitization |
+| `location_mapper_test.js` | Character position mapping |
+| `mutation_observer_test.js` | DOM mutation detection |
+| `serialization_test.js` | Document serialization |
+| `text_test.js` | Text model |
+| `bidi_test.js` | Bidirectional text |
+| `string_change_summary_test.js` | String diffing |
+
+### System test files
+
+| File | What it tests |
+|------|---------------|
+| `basic_input_test.js` | Typing, deletion, newlines |
+| `block_formatting_test.js` | Headings, quotes, code, lists |
+| `list_formatting_test.js` | Bullet and number lists, nesting |
+| `pasting_test.js` | Paste from clipboard (plain text and HTML) |
+| `cursor_movement_test.js` | Arrow key navigation |
+| `attachment_test.js` | File attachment and upload flow |
+| `attachment_caption_test.js` | Attachment caption editing |
+| `attachment_gallery_test.js` | Gallery attachment layout |
+| `html_loading_test.js` | Loading pre-existing HTML content |
+| `html_reparsing_test.js` | Round-trip HTML fidelity |
+| `html_replacement_test.js` | Programmatic content replacement |
+| `composition_input_test.js` | IME and composition events |
+| `custom_element_test.js` | `<trix-editor>` custom element lifecycle |
+| `accessibility_test.js` | ARIA and keyboard accessibility |
+| `morphing_test.js` | DOM morphing (idiomorph integration) |
+| `level_2_input_test.js` | Level 2 input event handling |
+| `mutation_input_test.js` | Mutation-based input |
+| `caching_test.js` | Document caching |
+| `installation_process_test.js` | Editor initialization |
+| `canceled_input_test.js` | Canceled input events |
+
+### Test helpers
+
+Shared utilities in `src/test/test_helpers/`:
+
+- `assertions.js` — custom QUnit assertions
+- `editor_helpers.js` — create and interact with editor instances
+- `event_helpers.js` — fire synthetic DOM events
+- `input_helpers.js` — simulate keyboard input
+- `selection_helpers.js` — set and read selections
+- `timing_helpers.js` — async helpers and `delay()`
+- `toolbar_helpers.js` — click toolbar buttons
+- `test_stubs.js` — stub objects for isolation
+- `fixtures/` — image fixtures used in attachment tests
+
+## Browser testing with Playwright
+
+Locally, tests run in headless Chromium using `@web/test-runner-playwright`:
+
+```javascript
+// web-test-runner.config.mjs
+const defaultBrowsers = [
+  playwrightLauncher({ product: 'chromium' }),
+]
+```
+
+Playwright is installed automatically as part of `yarn install`. If Playwright's browser binaries are missing, install them with:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+<Note>
+  In CI (GitHub Actions), the workflow installs Playwright browsers explicitly when SauceLabs credentials are not present. See `.github/workflows/ci.yml`.
+</Note>
+
+## In-browser debugging
+
+For debugging specific test failures, you can open the tests directly in a browser rather than running headlessly.
+
+<Steps>
+  <Step title="Start the development server">
+    ```bash
+    yarn start
+    ```
+    This builds assets and starts a local web server serving `dist/`.
+  </Step>
+  <Step title="Open the test page">
+    Navigate to `http://localhost:8000/test.html` in your browser. The QUnit test runner UI shows all tests grouped by module, with pass/fail indicators and assertion details for each failure.
+  </Step>
+  <Step title="Filter tests">
+    Use the QUnit URL filter to run a specific module or test. For example:
+    ```
+    http://localhost:8000/test.html?module=Composition
+    ```
+    Or click a module name in the QUnit UI to filter to that module.
+  </Step>
+  <Step title="Inspect with DevTools">
+    Open browser DevTools to set breakpoints in the compiled `dist/test.js`. Source maps are included (`dist/test.js.map`), so DevTools will map stack frames back to the original source files in `src/test/`.
+  </Step>
+</Steps>
+
+<Tip>
+  Stack traces from test failures are automatically translated via source maps even in headless mode. When a test fails in `yarn test`, the reported file and line number point to the original source in `src/`, not the compiled bundle.
+</Tip>
+
+## CI pipeline
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs two test jobs on every push and pull request:
+
+- **Browser tests** (`yarn test`) — Node.js 18, Chromium via Playwright (or SauceLabs when credentials are available, running Chrome, Firefox, Edge, and Android)
+- **Rails integration tests** — builds Trix and runs Action Text tests against multiple Rails and Ruby versions

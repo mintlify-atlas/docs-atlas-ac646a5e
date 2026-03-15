@@ -1,0 +1,154 @@
+---
+title: "Document Model"
+description: "How Trix represents rich text internally as an immutable tree of Documents, Blocks, and Pieces."
+---
+
+The formatted content of a Trix editor is called a **document**, represented as an instance of `Trix.Document`. Every time you make a change, Trix discards the previous document and replaces it with a new one. Understanding this model helps you read and manipulate editor content programmatically.
+
+## The hierarchy
+
+A Trix document has three levels:
+
+<CardGroup cols={3}>
+  <Card title="Document" icon="file-text">
+    The root object. Contains an ordered list of Blocks. Accessed via `editor.getDocument()`.
+  </Card>
+  <Card title="Block" icon="layout-list">
+    Represents a paragraph or block-level element. Holds a Text (sequence of Pieces) and a list of block attributes.
+  </Card>
+  <Card title="Piece" icon="puzzle">
+    The atomic unit. Either a `StringPiece` (text with inline attributes) or an `AttachmentPiece` (embedded file or content).
+  </Card>
+</CardGroup>
+
+### StringPiece
+
+A `StringPiece` holds a plain string value and a set of inline attributes (bold, italic, href, etc.). Adjacent pieces with identical attributes are consolidated automatically.
+
+```javascript
+// Internally, "Hello world" with bold on "Hello" becomes two StringPieces:
+// StringPiece("Hello", { bold: true })
+// StringPiece(" world", {})
+```
+
+### AttachmentPiece
+
+An `AttachmentPiece` wraps a `Trix.Attachment` object and always has a length of exactly **1** — it occupies a single character position in the document, represented by the Unicode Object Replacement Character (`\uFFFC`).
+
+```javascript
+// AttachmentPiece.toString() always returns "\uFFFC"
+// This is why attachments count as one character position
+```
+
+## Accessing the document
+
+Each `<trix-editor>` element exposes an `editor` property. Call `getDocument()` to read the current document.
+
+```javascript
+const element = document.querySelector("trix-editor")
+const doc = element.editor.getDocument()  // Trix.Document instance
+```
+
+### Converting to a plain string
+
+Use `document.toString()` to get the unformatted text content of the document, including newline characters at block boundaries.
+
+```javascript
+const doc = element.editor.getDocument()
+console.log(doc.toString())  // "Hello world\n"
+```
+
+### Checking equality
+
+Because documents are immutable, you can compare two snapshots with `isEqualTo`:
+
+```javascript
+const before = element.editor.getDocument()
+// ...make some edits...
+const after = element.editor.getDocument()
+
+before.isEqualTo(after)  // false if anything changed
+```
+
+## Immutability
+
+<Note>
+  Documents are immutable values. Every mutation — typing a character, applying bold, inserting an attachment — produces a **new** `Trix.Document` instance. The previous document is never modified.
+</Note>
+
+This design has two practical consequences:
+
+1. **Snapshots are free.** Storing a reference to a document object is enough to capture that exact state forever — no deep copy needed.
+2. **Undo is built in.** Trix's undo system works by replaying saved document snapshots.
+
+Every internal operation follows this pattern — for example, `insertTextAtRange` in `document.js`:
+
+```javascript
+// From src/trix/models/document.js
+insertTextAtRange(text, range) {
+  // ...computes new blockList...
+  return new this.constructor(
+    document.blockList.editObjectAtIndex(index, (block) =>
+      block.copyWithText(block.text.insertTextAtPosition(text, offset))
+    )
+  )
+}
+```
+
+The method always returns a `new this.constructor(...)` rather than mutating existing state.
+
+## Re-rendering on every change
+
+Trix uses `contenteditable` purely as an **I/O device**. When a user types or pastes, Trix:
+
+<Steps>
+  <Step title="Captures the input">
+    Intercepts the browser event before the browser can mutate the DOM.
+  </Step>
+  <Step title="Updates the document model">
+    Converts the input into an operation on the internal `Trix.Document`, producing a new document instance.
+  </Step>
+  <Step title="Re-renders from scratch">
+    Serializes the new document back to DOM nodes and replaces the `contenteditable` content entirely.
+  </Step>
+</Steps>
+
+This approach eliminates cross-browser inconsistencies from `execCommand` and gives Trix complete control over every keystroke's outcome.
+
+## Serialization and state
+
+You can serialize a full editor snapshot — document plus current selection — with `JSON.stringify`, and restore it later with `loadJSON`.
+
+```javascript
+// Save editor state to local storage
+localStorage["editorState"] = JSON.stringify(element.editor)
+
+// Restore editor state from local storage
+element.editor.loadJSON(JSON.parse(localStorage["editorState"]))
+```
+
+`JSON.stringify(element.editor)` calls `editor.toJSON()`, which returns the snapshot `{ document, selectedRange }`. The document's JSON representation is its block list — an array of block objects, each containing a `text` array of piece objects with their `type`, `string` or `attachment`, and `attributes`.
+
+<Tip>
+  The serialized state includes the document and current selection, but **not** undo history.
+</Tip>
+
+## Traversing the document
+
+You rarely need to traverse the document directly, but the API is available when you do:
+
+```javascript
+const doc = element.editor.getDocument()
+
+// Walk blocks
+doc.getBlocks().forEach((block) => {
+  console.log(block.getAttributes())  // e.g. ["quote"] or []
+  console.log(block.text.toString())  // text content of that block
+})
+
+// Get every piece across the whole document
+doc.getPieces().forEach((piece) => {
+  console.log(piece.getAttributes())  // inline attributes on this piece
+  console.log(piece.toString())       // string value (or \uFFFC for attachments)
+})
+```

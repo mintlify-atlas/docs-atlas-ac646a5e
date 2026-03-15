@@ -1,0 +1,166 @@
+---
+title: "Attributes"
+description: "How Trix applies inline and block-level formatting to document content, and how to activate, deactivate, and define custom attributes."
+---
+
+Trix represents all formatting as **attributes** applied to ranges of a document. There are two kinds:
+
+<CardGroup cols={2}>
+  <Card title="Inline (text) attributes" icon="bold">
+    Apply to a span of characters within a block. Examples: `bold`, `italic`, `href`, `strike`.
+  </Card>
+  <Card title="Block attributes" icon="layout">
+    Apply to an entire block (paragraph). Examples: `heading1`, `quote`, `code`, `bullet`, `number`.
+  </Card>
+</CardGroup>
+
+## Built-in inline attributes
+
+Defined in `src/trix/config/text_attributes.js`:
+
+| Attribute | HTML element | Notes |
+|-----------|-------------|-------|
+| `bold` | `<strong>` | Inheritable; also detected by computed `font-weight >= 600` |
+| `italic` | `<em>` | Inheritable; also detected by computed `font-style: italic` |
+| `href` | `<a>` (group tag) | Stores a URL string value |
+| `strike` | `<del>` | Inheritable |
+
+<Note>
+  **Inheritable** attributes propagate to adjacent text when you keep typing at the boundary of a formatted span. Non-inheritable attributes do not.
+</Note>
+
+## Built-in block attributes
+
+Defined in `src/trix/config/block_attributes.js`:
+
+| Attribute | HTML element | Properties |
+|-----------|-------------|------------|
+| `heading1` | `<h1>` | `terminal`, `breakOnReturn`, not groupable |
+| `quote` | `<blockquote>` | `nestable` |
+| `code` | `<pre>` | `terminal`, supports `language` HTML attribute |
+| `bullet` | `<li>` inside `<ul>` | `nestable`, uses `bulletList` wrapper |
+| `number` | `<li>` inside `<ol>` | `nestable`, uses `numberList` wrapper |
+
+<Info>
+  `terminal` blocks (heading1, code) prevent other block attributes from being stacked on top. `nestable` blocks (quote, bullet, number) support nesting levels via `increaseNestingLevel`.
+</Info>
+
+## Activating attributes
+
+Use `editor.activateAttribute(name)` to apply an attribute to the current selection:
+
+```javascript
+const element = document.querySelector("trix-editor")
+
+element.editor.insertString("Hello")
+element.editor.setSelectedRange([0, 5])
+element.editor.activateAttribute("bold")
+```
+
+For attributes that carry a value — like `href` — pass the value as the second argument:
+
+```javascript
+element.editor.insertString("Trix")
+element.editor.setSelectedRange([0, 4])
+element.editor.activateAttribute("href", "https://trix-editor.org/")
+```
+
+## Deactivating attributes
+
+Use `editor.deactivateAttribute(name)` to remove formatting from the current selection:
+
+```javascript
+element.editor.setSelectedRange([2, 4])
+element.editor.deactivateAttribute("bold")
+```
+
+## Checking attribute status
+
+```javascript
+// Is the attribute currently active at the selection?
+element.editor.attributeIsActive("bold")      // true or false
+
+// Can the attribute be activated? (e.g. false inside a terminal block)
+element.editor.canActivateAttribute("bold")   // true or false
+```
+
+Internally these map to `composition.hasCurrentAttribute` and `composition.canSetCurrentAttribute`. `canActivateAttribute` returns `false` when the current context forbids the attribute — for example, you cannot activate `bold` inside a `code` block because code blocks use `plaintext` text mode.
+
+## Formatting with a collapsed selection
+
+When the selection is collapsed (cursor, not a highlighted span), activating or deactivating attributes does **not** change existing text. Instead, the attribute becomes active for the **next inserted text**:
+
+```javascript
+element.editor.activateAttribute("italic")
+element.editor.insertString("This is italic")
+```
+
+<Tip>
+  This mirrors how a word processor works: turn on bold, then start typing, and everything you type is bold until you turn it off.
+</Tip>
+
+## Nesting levels
+
+The `quote`, `bullet`, and `number` block attributes are `nestable`. You can increase or decrease their nesting level with:
+
+```javascript
+element.editor.activateAttribute("quote")
+element.editor.increaseNestingLevel()  // now nested blockquote
+element.editor.decreaseNestingLevel()  // back to top-level
+```
+
+Before calling these methods, check whether nesting is currently possible:
+
+```javascript
+if (element.editor.canIncreaseNestingLevel()) {
+  element.editor.increaseNestingLevel()
+}
+
+if (element.editor.canDecreaseNestingLevel()) {
+  element.editor.decreaseNestingLevel()
+}
+```
+
+## Custom attributes
+
+You can extend Trix with your own inline and block attributes by adding entries to `Trix.config.textAttributes` or `Trix.config.blockAttributes` before the editor initializes.
+
+<Warning>
+  Modify `Trix.config` inside a `trix-before-initialize` event handler, before Trix installs its `editor` object. Changes made after initialization are ignored.
+</Warning>
+
+### Custom inline attribute
+
+```javascript
+import Trix from "trix"
+
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.textAttributes.highlight = {
+    tagName: "mark",
+    inheritable: true,
+  }
+})
+```
+
+Then add a toolbar button that targets `data-trix-attribute="highlight"`:
+
+```html
+<button type="button" data-trix-attribute="highlight">Highlight</button>
+```
+
+### Custom block attribute
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.blockAttributes.callout = {
+    tagName: "aside",
+    nestable: false,
+  }
+})
+```
+
+Then add a toolbar button:
+
+```html
+<button type="button" data-trix-attribute="callout">Callout</button>
+```

@@ -1,0 +1,201 @@
+---
+title: Document
+description: The Trix.Document class represents the immutable formatted content of a Trix editor.
+---
+
+A `Trix.Document` is an immutable value object that holds the structured content of a Trix editor. Every edit to an editor replaces the previous document with a new one — documents themselves never change. This makes it trivial to capture a snapshot of editor content: simply hold a reference to the document.
+
+## Getting a document
+
+Retrieve the editor's current document with `editor.getDocument()`:
+
+```javascript
+const element = document.querySelector("trix-editor")
+const trixDocument = element.editor.getDocument()  // Trix.Document
+```
+
+You can also retrieve a document representing only the currently selected content:
+
+```javascript
+element.editor.setSelectedRange([0, 5])
+const selectedDoc = element.editor.getSelectedDocument()
+```
+
+---
+
+## Document structure
+
+A document is organized as an ordered list of **blocks**. Each block corresponds to a block-level element (a paragraph, heading, quote, list item, etc.) and carries its own block-level attributes.
+
+Each block contains a **text**, which is itself a list of **pieces**. A piece is the smallest unit of formatted content: either a run of characters sharing identical inline attributes, or a single attachment.
+
+```
+Document
+└── Block[]          (paragraph, heading, bullet, …)
+    └── Text
+        └── Piece[]  (string piece or attachment piece)
+```
+
+<Tip>
+  You rarely need to work with blocks and pieces directly. The `editor` interface lets you manipulate content at the level of ranges and attributes.
+</Tip>
+
+---
+
+## Static methods
+
+### `Document.fromJSON(documentJSON)`
+
+Deserializes a document from its JSON representation (the array of serialized blocks produced by `JSON.stringify`).
+
+<ParamField body="documentJSON" type="object[]" required>
+  An array of serialized block objects, as produced by `JSON.stringify(editor.getDocument())`.
+</ParamField>
+
+<ResponseField name="returns" type="Trix.Document">
+  A new Document instance.
+</ResponseField>
+
+```javascript
+const json = JSON.parse(localStorage["editorState"])
+// json.document is the raw block array
+const doc = Trix.Document.fromJSON(json.document)
+```
+
+<Note>
+  In practice you rarely need to call `Document.fromJSON` directly. Use `editor.loadJSON(snapshot)` to restore a full snapshot including selection.
+</Note>
+
+---
+
+## Instance methods
+
+### `toString()`
+
+Converts the document to a plain JavaScript string, stripping all formatting.
+
+<ResponseField name="returns" type="string">
+  The document's plain text content. Block breaks are represented as newline characters.
+</ResponseField>
+
+```javascript
+const doc = element.editor.getDocument()
+doc.toString()  // e.g. "Hello, world!\n"
+```
+
+### `isEqualTo(other)`
+
+Compares two documents for equality by comparing their underlying block lists.
+
+<ParamField body="other" type="Trix.Document" required>
+  The document to compare against.
+</ParamField>
+
+<ResponseField name="returns" type="boolean">
+  `true` if both documents represent the same content and attributes.
+</ResponseField>
+
+```javascript
+const doc = element.editor.getDocument()
+doc.isEqualTo(element.editor.getDocument())  // true — same document
+
+element.editor.insertString("x")
+doc.isEqualTo(element.editor.getDocument())  // false — document changed
+```
+
+### `isEmpty()`
+
+Returns `true` if the document contains no content and no block attributes.
+
+<ResponseField name="returns" type="boolean" />
+
+```javascript
+element.editor.getDocument().isEmpty()  // true on a blank editor
+```
+
+### `getLength()`
+
+Returns the total character length of the document, including block-break characters.
+
+<ResponseField name="returns" type="number">
+  Total document length in characters.
+</ResponseField>
+
+### `getBlocks()`
+
+Returns all blocks in the document as an array.
+
+<ResponseField name="returns" type="Block[]">
+  An array of `Trix.Block` instances.
+</ResponseField>
+
+### `getBlockCount()`
+
+Returns the number of blocks in the document.
+
+<ResponseField name="returns" type="number" />
+
+### `getAttachments()`
+
+Returns all attachments present in the document.
+
+<ResponseField name="returns" type="Trix.Attachment[]">
+  An array of `Trix.Attachment` instances.
+</ResponseField>
+
+```javascript
+const attachments = element.editor.getDocument().getAttachments()
+attachments.forEach((attachment) => console.log(attachment.getURL()))
+```
+
+### `toJSON()`
+
+Serializes the document to a JSON-compatible array of block objects. Called automatically by `JSON.stringify`.
+
+<ResponseField name="returns" type="object[]">
+  An array of serialized block objects.
+</ResponseField>
+
+```javascript
+const json = JSON.stringify(element.editor.getDocument())
+// '[{"text":[...],"attributes":[]}]'
+```
+
+---
+
+## Serialization and persistence
+
+The recommended pattern for saving and restoring editor state is to serialize the full editor snapshot (document + selection) with `JSON.stringify` and restore it with `editor.loadJSON`:
+
+```javascript
+// Save to localStorage
+localStorage["editorState"] = JSON.stringify(element.editor)
+
+// Restore from localStorage
+element.editor.loadJSON(JSON.parse(localStorage["editorState"]))
+```
+
+`JSON.stringify(element.editor)` calls `editor.toJSON()`, which returns `{ document, selectedRange }`. The `document` value is the block array produced by `document.toJSON()`.
+
+<Warning>
+  The serialized state does not include undo history. After calling `editor.loadJSON`, the undo stack is empty.
+</Warning>
+
+### Custom validation with documents
+
+You can inspect the document inside a `trix-change` listener to implement custom validation:
+
+```javascript
+addEventListener("trix-change", (event) => {
+  const editorElement = event.target
+  const trixDocument = editorElement.editor.getDocument()
+
+  const isValid = trixDocument.toString().trim().length > 0
+
+  if (isValid) {
+    editorElement.setCustomValidity("")
+  } else {
+    editorElement.setCustomValidity("The document cannot be empty.")
+  }
+})
+```

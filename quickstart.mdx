@@ -1,80 +1,173 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Build a working Trix rich text editor in minutes. Covers the minimal HTML setup, form integration, loading existing content, and accessing the editor API."
 ---
 
-## Get started in three steps
+This guide walks through building a fully working Trix editor from scratch. By the end you will have an editor that submits its HTML content with a form.
 
-Get your documentation site running locally and make your first customization.
+## Minimal working example
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Include the CSS and JavaScript">
+    Add Trix to your page's `<head>`. The CSS provides default styles for the toolbar and editor; the script registers the `<trix-editor>` and `<trix-toolbar>` custom elements.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```html
+    <head>
+      <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.1.17/dist/trix.css">
+      <script type="text/javascript" src="https://unpkg.com/trix@2.1.17/dist/trix.umd.min.js"></script>
+    </head>
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Add a hidden input inside your form">
+    Trix stores its HTML output in a hidden `<input>` element. Give it an `id` so the editor can reference it, and a `name` so the value is submitted with your form.
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```html
+    <form method="post" action="/posts">
+      <input id="post_content" type="hidden" name="content">
+    </form>
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Add the trix-editor element">
+    Place `<trix-editor>` inside the form and set its `input` attribute to the `id` of the hidden input. Trix will automatically insert a `<trix-toolbar>` immediately before the editor.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```html
+    <form method="post" action="/posts">
+      <input id="post_content" type="hidden" name="content">
+      <trix-editor input="post_content"></trix-editor>
+    </form>
+    ```
 
-### Step 3: Go live
+    <Tip>
+      `<trix-editor>` also accepts `autofocus` and `placeholder` attributes, just like `<textarea>`. Unlike a `<textarea>`, it expands vertically to fit its contents automatically.
+    </Tip>
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Submit the form">
+    Trix keeps the hidden input's `value` in sync with the editor content after every change. When the form is submitted, your server receives the HTML content in the `content` parameter — no extra JavaScript required.
 
-## Next steps
+    To read the current value before submission:
 
-Now that you have your docs running, explore these key features:
+    ```javascript
+    const input = document.getElementById("post_content")
+    console.log(input.value) // HTML string of current editor content
+    ```
+  </Step>
+</Steps>
 
-<CardGroup cols={2}>
+## Complete minimal HTML
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+Here is the full example as a single HTML file:
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.1.17/dist/trix.css">
+    <script type="text/javascript" src="https://unpkg.com/trix@2.1.17/dist/trix.umd.min.js"></script>
+  </head>
+  <body>
+    <form method="post" action="/posts">
+      <input id="post_content" type="hidden" name="content">
+      <trix-editor input="post_content"></trix-editor>
+      <button type="submit">Save</button>
+    </form>
+  </body>
+</html>
+```
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+## Loading existing content
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+To pre-populate the editor with saved content, set the `value` attribute on the hidden input element. Trix reads the input's initial value when the editor connects to the DOM.
 
+```html
+<form method="post" action="/posts/1">
+  <input id="post_content" value="<h1>Hello world</h1>" type="hidden" name="content">
+  <trix-editor input="post_content"></trix-editor>
+</form>
+```
+
+<Warning>
+  When a `<trix-editor>` connects with both inline HTML content inside its tags and an associated `input` element, Trix always disregards the inline HTML and loads from the input's `value`.
+</Warning>
+
+Alternatively, if you are not using an associated `<input>` element, Trix will safely sanitize and load any HTML content placed directly inside the `<trix-editor>` tag:
+
+```html
+<trix-editor>Editor content goes here</trix-editor>
+```
+
+## Accessing the editor API
+
+Every `<trix-editor>` element exposes an `editor` property once initialized. This is a `Trix.Editor` instance you can use to manipulate the document programmatically.
+
+```javascript
+const element = document.querySelector("trix-editor")
+const editor = element.editor  // Trix.Editor instance
+```
+
+Wait for the `trix-initialize` event before accessing the `editor` property to ensure the element has finished connecting:
+
+```javascript
+document.addEventListener("trix-initialize", (event) => {
+  const editor = event.target.editor
+
+  // Insert text at the current cursor position
+  editor.insertString("Hello, world!")
+
+  // Get the current document as HTML
+  const element = event.target
+  console.log(element.value) // HTML string
+})
+```
+
+The `editor` property gives you access to the full programmatic API:
+
+```javascript
+// Insert text and HTML
+editor.insertString("Hello")
+editor.insertHTML("<strong>Bold text</strong>")
+
+// Manage selections
+editor.setSelectedRange([0, 5])
+editor.getSelectedRange()  // [0, 5]
+
+// Apply formatting to the current selection
+editor.activateAttribute("bold")
+editor.deactivateAttribute("bold")
+
+// Undo and redo
+editor.undo()
+editor.redo()
+
+// Inspect the document model
+const doc = editor.getDocument()  // Trix.Document instance
+doc.toString()  // Plain text string
+```
+
+## Custom toolbar placement
+
+By default Trix inserts `<trix-toolbar>` immediately before `<trix-editor>`. To place the toolbar elsewhere, render it yourself and reference its `id` with the `toolbar` attribute:
+
+```html
+<main>
+  <trix-toolbar id="my_toolbar"></trix-toolbar>
+  <div class="other-content"></div>
+  <trix-editor toolbar="my_toolbar" input="post_content"></trix-editor>
+</main>
+```
+
+## What to do next
+
+<CardGroup cols={3}>
+  <Card title="Editor API" icon="terminal" href="/api/editor">
+    Full reference for `Trix.Editor` methods: inserting content, managing selections, applying formatting, and working with the document model.
+  </Card>
+  <Card title="Events" icon="bell" href="/api/events">
+    Complete list of Trix events including `trix-change`, `trix-attachment-add`, `trix-paste`, and `trix-selection-change`.
+  </Card>
+  <Card title="Guides" icon="book" href="/guides/creating-editor">
+    In-depth guides for file attachments, custom toolbars, HTML sanitization, form validation, and more.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

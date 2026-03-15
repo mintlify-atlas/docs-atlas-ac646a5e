@@ -1,0 +1,167 @@
+---
+title: "Building from source"
+description: "Install dependencies, run the full build pipeline, and use the development server for live editing of Trix source."
+---
+
+## Prerequisites
+
+Before building, you need:
+
+- **Node.js 18.18.0** — specified in `.node-version`. Use a version manager such as `nvm`, `nodenv`, or `fnm` to switch to the correct version automatically.
+- **Yarn** — Trix uses Yarn to manage dependencies and run scripts.
+
+<Tip>
+  If you have `nodenv` or another version manager that reads `.node-version`, running any `yarn` command from the project root will automatically activate the correct Node.js version.
+</Tip>
+
+## Installing dependencies
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/basecamp/trix.git
+    cd trix
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```bash
+    yarn install
+    ```
+    This installs all devDependencies including Rollup, Sass, ESLint, Playwright, and the web test runner.
+  </Step>
+</Steps>
+
+## Build commands
+
+### Full build
+
+Run the complete build pipeline — JavaScript, CSS, HTML assets, and the Ruby gem sync:
+
+```bash
+yarn build
+```
+
+This runs the following steps in sequence:
+
+1. `yarn build-js` — bundles JavaScript with Rollup
+2. `yarn build-css` — compiles Sass to CSS
+3. `yarn build-assets` — copies HTML assets to `dist/`
+4. `yarn build-ruby` — syncs built files into the `action_text-trix` gem
+
+### Individual build steps
+
+<AccordionGroup>
+  <Accordion title="yarn build-js — JavaScript only">
+    Bundles `src/trix/trix.js` using Rollup:
+
+    ```bash
+    yarn build-js
+    ```
+
+    Rollup produces four output files from two input passes:
+
+    | File | Format | Notes |
+    |------|--------|-------|
+    | `dist/trix.umd.js` | UMD | Unminified, for debugging |
+    | `dist/trix.esm.js` | ES module | Unminified, for debugging |
+    | `dist/trix.umd.min.js` | UMD | Minified + source map (npm `main`) |
+    | `dist/trix.esm.min.js` | ES module | Minified + source map (npm `module`) |
+
+    The test bundle (`dist/test.js`) and inspector bundle (`dist/inspector.js`) are also built in the same pass.
+  </Accordion>
+  <Accordion title="yarn build-css — CSS only">
+    Compiles `assets/trix.scss` to CSS:
+
+    ```bash
+    yarn build-css
+    ```
+
+    Writes output to `dist/trix.css` and also to `action_text-trix/app/assets/stylesheets/trix.css`.
+  </Accordion>
+  <Accordion title="yarn build-assets — HTML assets">
+    Copies HTML files from `assets/` into `dist/`:
+
+    ```bash
+    yarn build-assets
+    ```
+
+    This includes `index.html` (the debugger inspector) and `test.html` (the in-browser test runner).
+  </Accordion>
+</AccordionGroup>
+
+## Development workflow
+
+### Watch mode
+
+Rebuild the JavaScript bundle automatically whenever source files under `src/` change:
+
+```bash
+yarn watch
+```
+
+### Development server
+
+Serve the compiled assets from `dist/` on a local web server:
+
+```bash
+yarn dev
+```
+
+With the server running:
+
+- `/index.html` — opens the Trix debugger inspector
+- `/test.html` — runs the test suite in the browser
+
+<Note>
+  `yarn dev` serves pre-built files. Run `yarn build` or `yarn watch` first to ensure `dist/` is populated.
+</Note>
+
+### Combined watch + serve
+
+The easiest way to develop interactively — watches JavaScript and CSS for changes and starts the dev server in a single command:
+
+```bash
+yarn start
+```
+
+This runs `yarn watch`, `yarn build-css --watch`, and `yarn dev` concurrently. Any change to a source file is automatically compiled and immediately available in the browser.
+
+## Output files
+
+After a successful build, the `dist/` directory contains:
+
+```
+dist/
+├── trix.umd.min.js      # UMD bundle (minified) — referenced by package.json "main"
+├── trix.umd.min.js.map  # Source map
+├── trix.umd.js          # UMD bundle (unminified)
+├── trix.esm.min.js      # ES module bundle (minified) — referenced by package.json "module"
+├── trix.esm.min.js.map  # Source map
+├── trix.esm.js          # ES module bundle (unminified)
+├── trix.css             # Compiled stylesheet — referenced by package.json "style"
+├── test.js              # Compiled test bundle
+├── test.js.map          # Test source map
+├── inspector.js         # Compiled debugger inspector bundle
+├── index.html           # Debugger inspector page
+└── test.html            # In-browser test runner page
+```
+
+## Rollup configuration
+
+The build is configured in `rollup.config.js`. Key details:
+
+- **Entry point:** `src/trix/trix.js`
+- **Plugins:** JSON, path resolution (`src/` as root), Node module resolution, CommonJS interop, Babel transpilation
+- **Minification:** `rollup-plugin-terser` with mangle and compress enabled; copyright comments are preserved
+- **Watch scope:** `src/**` — only files under `src/` trigger rebuilds
+- **Global name:** `Trix` (for UMD builds)
+
+```javascript
+// rollup.config.js (excerpt)
+includePaths({
+  paths: [ "src" ],
+  extensions: [ ".js" ]
+})
+```
+
+Because `src/` is on the include path, internal imports use bare names like `trix/models/document` rather than relative paths.

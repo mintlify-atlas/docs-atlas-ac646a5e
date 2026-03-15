@@ -1,97 +1,92 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Trix — A Rich Text Editor for Everyday Writing"
+description: "Compose beautifully formatted text in your web application. Trix is a WYSIWYG editor built on web standards with a sophisticated document model."
 ---
 
-## Setting up
+<div style={{background: "linear-gradient(135deg, #c64a78 0%, #6870b1 100%)", borderRadius: "8px", padding: "48px 32px", marginBottom: "32px", color: "white"}}>
+  <h1 style={{fontSize: "2.5rem", fontWeight: 700, margin: 0, lineHeight: 1.2}}>Trix</h1>
+  <p style={{fontSize: "1.25rem", marginTop: "12px", marginBottom: "24px", opacity: 0.92}}>
+    A rich text editor for everyday writing
+  </p>
+  <p style={{fontSize: "1rem", opacity: 0.85, maxWidth: "600px", marginBottom: "28px"}}>
+    Compose beautifully formatted text in your web application. Trix is a WYSIWYG editor for writing messages, comments, articles, and lists — built on web standards with a custom document model that avoids browser inconsistencies.
+  </p>
+  <div style={{display: "flex", gap: "12px", flexWrap: "wrap"}}>
+    <a href="/installation" style={{background: "white", color: "#c64a78", padding: "10px 20px", borderRadius: "4px", fontWeight: 600, textDecoration: "none", fontSize: "0.95rem"}}>Get Started</a>
+    <a href="/quickstart" style={{background: "transparent", color: "white", padding: "10px 20px", borderRadius: "4px", fontWeight: 600, textDecoration: "none", fontSize: "0.95rem", border: "2px solid rgba(255,255,255,0.7)"}}>Quickstart</a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add Trix to your project via CDN or npm. Works with any asset bundler.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get a working rich text editor in minutes with just two HTML elements.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Editor API" icon="code" href="/api/editor">
+    Programmatically insert text, manage selections, apply formatting, and control undo/redo.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Events" icon="bell" href="/api/events">
+    Observe editor changes and respond to user interactions with a rich event system.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Trix?
 
-Everything you need to create world-class documentation.
+Trix takes a fundamentally different approach to rich text editing. Rather than wrapping HTML's `contenteditable` and `execCommand` APIs — which are inconsistently implemented across browsers — Trix treats `contenteditable` as an I/O device.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+When input reaches the editor, Trix converts it into an operation on its internal document model, then re-renders that document back into the editor. This gives Trix complete control over every keystroke and eliminates browser inconsistencies entirely.
 
-## Need inspiration?
+<CardGroup cols={3}>
+  <Card title="Custom document model" icon="file-lines">
+    Immutable document objects with consistent behavior across all browsers and platforms.
+  </Card>
+  <Card title="Web Components" icon="puzzle-piece">
+    Drop-in `<trix-editor>` and `<trix-toolbar>` custom elements — no framework required.
+  </Card>
+  <Card title="Programmatic API" icon="terminal">
+    Full JavaScript API for inserting, formatting, and querying editor content from code.
+  </Card>
+  <Card title="File attachments" icon="paperclip">
+    Built-in drag-and-drop and paste support for file and image attachments.
+  </Card>
+  <Card title="Unlimited undo/redo" icon="rotate-left">
+    Complete undo history with smart consolidation of successive typing changes.
+  </Card>
+  <Card title="Form integration" icon="clipboard-list">
+    Native form submission, constraint validation, and `required` attribute support.
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Quick example
+
+Add Trix to any web page with just a script tag and two elements:
+
+```html
+<head>
+  <link rel="stylesheet" href="https://unpkg.com/trix@2.1.17/dist/trix.css">
+  <script src="https://unpkg.com/trix@2.1.17/dist/trix.umd.min.js"></script>
+</head>
+<body>
+  <input id="content" type="hidden" name="content">
+  <trix-editor input="content"></trix-editor>
+</body>
+```
+
+That's it. Trix automatically creates a toolbar, wires up the hidden input, and the editor is ready to use.
+
+## Built on web standards
+
+Trix is built with established web standards:
+
+- [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) — `<trix-editor>` and `<trix-toolbar>` are native web components
+- [Element Internals](https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals) — for native form association
+- [Mutation Observer](https://dom.spec.whatwg.org/#mutation-observers) — for efficient DOM change detection
+- [DOMPurify](https://github.com/cure53/DOMPurify/) — for HTML sanitization
+
+Trix supports all evergreen desktop and mobile browsers.
+
+## From the creators of Basecamp
+
+Trix is an open-source project from [37signals](https://37signals.com), the creators of Ruby on Rails. Millions of people trust their text to Trix — it powers the rich text editing in [Basecamp](https://basecamp.com) and integrates natively with Rails via [Action Text](https://guides.rubyonrails.org/action_text_overview.html).

@@ -1,0 +1,141 @@
+---
+title: "File Attachments"
+description: "Handle file drag-and-drop and paste, upload attachments to a remote server, track upload progress, reject unwanted file types, and insert custom HTML content attachments."
+---
+
+Trix accepts files dragged onto the editor, pasted from the clipboard, or selected via the attach-files button in the toolbar. Each attached file becomes a pending attachment inside the document until you provide a permanent URL.
+
+## How attachments enter the editor
+
+<CardGroup cols={3}>
+  <Card title="Drag and drop" icon="arrow-down-to-line">
+    Drop a file anywhere over the editor surface and Trix inserts it as an attachment at the drop position.
+  </Card>
+  <Card title="Paste" icon="clipboard">
+    Paste image data from the clipboard (e.g., a screenshot) and Trix converts it into an attachment.
+  </Card>
+  <Card title="Attach button" icon="paperclip">
+    The default toolbar includes an attach-files button (`data-trix-action="attachFiles"`) that opens a file picker.
+  </Card>
+</CardGroup>
+
+## Rejecting files before they attach
+
+Listen for `trix-file-accept` to inspect a file before it is inserted. Call `preventDefault()` to cancel the attachment.
+
+```javascript
+document.addEventListener("trix-file-accept", (event) => {
+  const acceptedTypes = ["image/png", "image/jpeg", "image/gif"]
+
+  if (!acceptedTypes.includes(event.file.type)) {
+    event.preventDefault()
+    alert(`File type ${event.file.type} is not allowed.`)
+  }
+})
+```
+
+`trix-file-accept` fires before `trix-attachment-add`. Cancelling it prevents both events.
+
+## Uploading attachments
+
+Listen for `trix-attachment-add` and upload the file yourself. Once the upload finishes, call `attachment.setAttributes({ url, href })` to provide the permanent URL. Trix then treats the attachment as stored.
+
+```javascript
+document.addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+
+  if (attachment.file) {
+    uploadFile(attachment.file, attachment)
+  }
+})
+
+function uploadFile(file, attachment) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const xhr = new XMLHttpRequest()
+  xhr.open("POST", "/uploads", true)
+
+  // Track upload progress
+  xhr.upload.addEventListener("progress", (event) => {
+    if (event.lengthComputable) {
+      const progress = (event.loaded / event.total) * 100
+      attachment.setUploadProgress(progress)
+    }
+  })
+
+  xhr.addEventListener("load", () => {
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText)
+      attachment.setAttributes({
+        url: response.url,
+        href: response.href
+      })
+    }
+  })
+
+  xhr.send(formData)
+}
+```
+
+### Tracking upload progress
+
+Call `attachment.setUploadProgress(percentage)` with a number between `0` and `100`. Trix renders a `<progress>` element (`.attachment__progress`) inside the attachment figure that reflects this value.
+
+The progress bar is automatically hidden when `setUploadProgress(100)` is called, using a CSS `opacity` transition defined in `trix.css`.
+
+## Cleaning up after removal
+
+Listen for `trix-attachment-remove` to delete files from your server when an attachment is removed from the document:
+
+```javascript
+document.addEventListener("trix-attachment-remove", (event) => {
+  const { attachment } = event
+  const url = attachment.getAttribute("url")
+
+  if (url) {
+    fetch(url, { method: "DELETE" })
+  }
+})
+```
+
+## Image previews
+
+Trix automatically previews attached images. A file is previewable when its content type matches `Trix.Attachment.previewablePattern`. The default previewable types are:
+
+- `image/gif`
+- `image/png`
+- `image/webp`
+- `image/jpg`
+- `image/jpeg`
+
+To customize preview behavior for a specific attachment, set the `previewable` attribute and provide a custom preview URL via `setPreviewURL` inside a `trix-attachment-add` handler:
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  if (event.attachment.file instanceof File) {
+    event.attachment.setAttribute("previewable", true)
+    event.attachment.setPreviewURL("https://example.com/thumbnails/preview.jpg")
+  }
+})
+```
+
+## Content attachments
+
+Content attachments embed arbitrary HTML as a single, atomic unit inside the document. They behave like files: they can be moved and deleted, but not edited in-place. The HTML is not subject to Trix's block conversion rules and is rendered as-is.
+
+Create a `Trix.Attachment` with a `content` property and insert it with `editor.insertAttachment`:
+
+```javascript
+const element = document.querySelector("trix-editor")
+
+const attachment = new Trix.Attachment({
+  content: '<span class="mention">@trix</span>'
+})
+
+element.editor.insertAttachment(attachment)
+```
+
+<Tip>
+  Content attachments are useful for user mentions, embedded widgets, or any snippet that must remain intact and uneditable within the prose.
+</Tip>

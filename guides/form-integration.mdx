@@ -1,0 +1,155 @@
+---
+title: "Form Integration"
+description: "Wire Trix to HTML forms, pre-populate content, validate editor input, and understand how Element Internals enables form submission without a hidden input."
+---
+
+## Basic wiring
+
+To include `<trix-editor>` content in a form submission, create a hidden input field with an `id` and set the editor's `input` attribute to that `id`. Trix automatically updates the hidden input's value on every change.
+
+```html
+<form method="post" action="/posts">
+  <input id="post_body" type="hidden" name="body">
+  <trix-editor input="post_body"></trix-editor>
+  <button type="submit">Publish</button>
+</form>
+```
+
+## Populating with stored content
+
+To restore previously saved content into the editor, set it as the `value` attribute on the hidden input before the editor initializes.
+
+```html
+<form method="post" action="/posts/1">
+  <input id="post_body" value="&lt;h1&gt;Hello&lt;/h1&gt;&lt;p&gt;Stored content.&lt;/p&gt;"
+    type="hidden" name="body">
+  <trix-editor input="post_body"></trix-editor>
+  <button type="submit">Update</button>
+</form>
+```
+
+### Loading content directly inside the tag
+
+When there is no associated input element, Trix sanitizes and loads any HTML placed between the opening and closing `<trix-editor>` tags:
+
+```html
+<form method="post" action="/posts/1">
+  <trix-editor><h1>Hello</h1><p>Stored content.</p></trix-editor>
+</form>
+```
+
+<Warning>
+  When a `<trix-editor>` element connects with both inline HTML content **and** an associated input element, Trix always ignores the inline HTML and loads initial content from the associated input element instead.
+</Warning>
+
+## Constraint validation
+
+`<trix-editor>` participates in the browser's [Constraint Validation API](https://developer.mozilla.org/en-US/docs/Web/HTML/Constraint_validation). Add the `required` attribute to mark the editor invalid when it is empty.
+
+```html
+<input id="x" value="" type="hidden" name="content">
+<trix-editor input="x" required></trix-editor>
+```
+
+You can inspect validity state programmatically:
+
+```javascript
+const editor = document.querySelector("trix-editor")
+
+editor.validity.valid        // => false
+editor.validity.valueMissing // => true
+editor.matches(":valid")     // => false
+editor.matches(":invalid")   // => true
+
+editor.value = "A value that isn't empty"
+
+editor.validity.valid        // => true
+editor.validity.valueMissing // => false
+editor.matches(":valid")     // => true
+editor.matches(":invalid")   // => false
+```
+
+Use `:valid` and `:invalid` CSS pseudo-classes to provide visual feedback:
+
+```css
+trix-editor:invalid {
+  outline: 2px solid red;
+}
+
+trix-editor:valid {
+  outline: 2px solid green;
+}
+```
+
+## Custom validation
+
+Call `setCustomValidity()` on the editor element to set a custom validation message. Pass an empty string to clear the custom error.
+
+A natural place to run custom validation is inside a `trix-change` listener:
+
+```javascript
+addEventListener("trix-change", (event) => {
+  const editorElement = event.target
+  const trixDocument = editorElement.editor.getDocument()
+
+  const isValid = (trixDocument) => {
+    // determine validity based on your custom criteria
+    return true
+  }
+
+  if (isValid(trixDocument)) {
+    editorElement.setCustomValidity("")
+  } else {
+    editorElement.setCustomValidity("The document is not valid.")
+  }
+})
+```
+
+## Disabling in a form context
+
+A disabled editor is non-editable, cannot receive focus, and its value is excluded from form submission. Disable the editor with the `[disabled]` attribute or the `.disabled` property:
+
+```html
+<trix-editor input="post_body" disabled></trix-editor>
+```
+
+```javascript
+document.querySelector("trix-editor").disabled = true
+```
+
+When the surrounding `<form>` or a `<fieldset>` ancestor is disabled, the `formDisabledCallback` fires internally and Trix removes `contenteditable` from the editor element.
+
+## Form submission without a hidden input
+
+In browsers that support [Element Internals](https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals), `<trix-editor>` can submit its value directly through the form without a hidden input element.
+
+<Steps>
+  <Step title="Set willCreateInput to false">
+    Listen for `trix-before-initialize` and opt the element out of creating a hidden input:
+
+    ```javascript
+    addEventListener("trix-before-initialize", (event) => {
+      event.target.willCreateInput = false
+    })
+    ```
+  </Step>
+
+  <Step title="Add a name attribute">
+    Provide a `[name]` attribute so the value is included in the form submission:
+
+    ```html
+    <form method="post" action="/posts">
+      <trix-editor name="body"></trix-editor>
+      <button type="submit">Publish</button>
+    </form>
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Without a `[name]` attribute and without a hidden `<input>`, the editor's value is **not** included in form submissions.
+</Warning>
+
+<Note>
+  Trix always uses an associated `<input type="hidden">` when the `[input]` attribute is present. Remove the `[input]` attribute entirely when migrating to input-free mode.
+</Note>

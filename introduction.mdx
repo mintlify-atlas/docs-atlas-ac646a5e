@@ -1,0 +1,75 @@
+---
+title: "Introduction"
+description: "Trix is a rich text editor for everyday writing, built by 37signals with a custom document model that gives you complete control over editor behavior."
+---
+
+Trix is a WYSIWYG editor for writing messages, comments, articles, and lists — the simple documents most web apps are made of. It features a sophisticated document model, support for embedded attachments, and outputs terse and consistent HTML.
+
+Trix is an open-source project from [37signals](https://37signals.com), the creators of Ruby on Rails. Millions of people trust their text to it, and you can see Trix in action in [Basecamp](https://basecamp.com).
+
+## Different by design
+
+When Trix was designed in 2014, most WYSIWYG editors were wrappers around HTML's `contenteditable` and `execCommand` APIs — designed by Microsoft to support live editing of web pages in Internet Explorer 5.5, and eventually reverse-engineered and copied by other browsers.
+
+Because these APIs were not fully specified or documented, and because WYSIWYG HTML editors are enormous in scope, each browser's implementation had its own set of bugs and quirks, leaving JavaScript developers to resolve the inconsistencies.
+
+Trix sidesteps these inconsistencies by treating `contenteditable` as an I/O device: when input makes its way to the editor, Trix converts that input into an editing operation on its internal document model, then re-renders that document back into the editor. This gives Trix complete control over what happens after every keystroke, and avoids the need to use `execCommand` at all.
+
+<Note>
+  This is the approach that all modern, production-ready WYSIWYG editors now take. Trix pioneered it.
+</Note>
+
+## Built on web standards
+
+Trix supports all evergreen, self-updating desktop and mobile browsers. It is built with established web standards:
+
+- [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) — `<trix-editor>` and `<trix-toolbar>` are real HTML elements
+- [Element Internals](https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals) — native form participation without a hidden input
+- [Mutation Observer](https://dom.spec.whatwg.org/#mutation-observers) — efficient DOM change detection
+- [Promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) — async operations
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Custom document model" icon="file-text">
+    All editor state lives in an immutable `Trix.Document` instance — not the DOM. Each change produces a new document, making undo, redo, and state snapshots straightforward.
+  </Card>
+  <Card title="Custom Elements" icon="code">
+    Drop `<trix-editor>` anywhere in your HTML. Trix registers the element using the Custom Elements API and automatically inserts a `<trix-toolbar>` before it.
+  </Card>
+  <Card title="Native form integration" icon="square-check">
+    Through Element Internals, `<trix-editor>` participates in forms like any native control. It supports `required`, `disabled`, `name`, `validity`, and `setCustomValidity()`.
+  </Card>
+  <Card title="File attachments" icon="paperclip">
+    Trix accepts files dragged or pasted into the editor and treats them as pending attachments. Listen for `trix-attachment-add` to upload and assign permanent URLs.
+  </Card>
+  <Card title="Programmatic API" icon="terminal">
+    Every `<trix-editor>` element exposes an `editor` property — a `Trix.Editor` instance with methods to insert text, HTML, and attachments, manage selections, apply formatting, and undo/redo.
+  </Card>
+  <Card title="Consistent HTML output" icon="brackets-curly">
+    Trix outputs terse, predictable HTML. It uses [DOMPurify](https://github.com/cure53/DOMPurify/) for sanitization, and the output format is stable across browsers.
+  </Card>
+</CardGroup>
+
+## Distribution formats
+
+Trix ships in two formats from the `dist/` directory:
+
+| File | Format | Use case |
+|---|---|---|
+| `trix.esm.min.js` | ESM | Bundlers (webpack, Vite, Rollup) |
+| `trix.umd.min.js` | UMD | CDN / `<script>` tags |
+| `trix.css` | CSS | Default toolbar and editor styles |
+
+The current version is **2.1.17**.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add Trix to your project via CDN, npm, yarn, or pnpm.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build a working editor in minutes with a minimal HTML example.
+  </Card>
+</CardGroup>

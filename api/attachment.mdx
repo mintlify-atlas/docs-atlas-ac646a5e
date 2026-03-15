@@ -1,0 +1,342 @@
+---
+title: Attachment
+description: The Trix.Attachment class represents files, images, and custom HTML content embedded in a Trix document.
+---
+
+A `Trix.Attachment` is an object that represents embedded content within a Trix document. Attachments behave like a single character in the document model — they can be selected, moved, and deleted, but not edited in-place.
+
+There are two kinds of attachments:
+
+<CardGroup cols={2}>
+  <Card title="File attachments" icon="file">
+    Backed by a DOM `File` object. Trix treats them as _pending_ until you upload the file and set a permanent URL.
+  </Card>
+  <Card title="Content attachments" icon="code">
+    Self-contained HTML snippets (e.g. mentions, cards). Their `content` attribute is rendered as-is and is not subject to Trix's conversion rules.
+  </Card>
+</CardGroup>
+
+## Constructor
+
+### `new Trix.Attachment(attributes)`
+
+Creates a new Attachment from a plain attributes object.
+
+<ParamField body="attributes" type="object" required>
+  An object describing the attachment. All fields are optional but at least one of `content`, `url`, or `file` (set separately) is required for the attachment to be useful.
+  <Expandable title="attributes">
+    <ResponseField name="content" type="string">
+      Raw HTML to render inside the attachment. When present, the attachment is treated as a _content_ attachment and the HTML is not sanitized or converted.
+    </ResponseField>
+    <ResponseField name="contentType" type="string">
+      MIME type, e.g. `"image/png"` or `"application/pdf"`. Used to determine whether the attachment is previewable.
+    </ResponseField>
+    <ResponseField name="filename" type="string">
+      Display name of the file.
+    </ResponseField>
+    <ResponseField name="filesize" type="number">
+      File size in bytes.
+    </ResponseField>
+    <ResponseField name="href" type="string">
+      URL to link the attachment to. The attachment will be wrapped in an `<a>` tag pointing to this URL.
+    </ResponseField>
+    <ResponseField name="url" type="string">
+      Permanent URL of the uploaded file. Setting this clears the pending state.
+    </ResponseField>
+    <ResponseField name="width" type="number">
+      Width of the attachment in pixels. Set automatically when Trix preloads an image.
+    </ResponseField>
+    <ResponseField name="height" type="number">
+      Height of the attachment in pixels. Set automatically when Trix preloads an image.
+    </ResponseField>
+    <ResponseField name="previewable" type="boolean">
+      Override whether the attachment should be previewed. Set to `true` to force preview rendering even for non-image types.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+```javascript
+// Content attachment — custom HTML rendered as-is
+const mention = new Trix.Attachment({
+  content: '<span class="mention">@trix</span>'
+})
+element.editor.insertAttachment(mention)
+
+// File attachment attributes (usually set by Trix internally)
+const fileAttachment = new Trix.Attachment({
+  filename: "report.pdf",
+  filesize: 204800,
+  contentType: "application/pdf",
+  url: "https://example.com/uploads/report.pdf"
+})
+```
+
+---
+
+## Reading attributes
+
+### `getAttribute(name)`
+
+Returns the value of the named attribute.
+
+<ParamField body="name" type="string" required>
+  The attribute name.
+</ParamField>
+
+<ResponseField name="returns" type="any">
+  The attribute value, or `undefined` if not set.
+</ResponseField>
+
+```javascript
+attachment.getAttribute("url")           // "https://example.com/file.png"
+attachment.getAttribute("contentType")   // "image/png"
+```
+
+### `getAttributes()`
+
+Returns a plain object containing all current attributes.
+
+<ResponseField name="returns" type="object">
+  A snapshot of all attribute key-value pairs.
+</ResponseField>
+
+```javascript
+attachment.getAttributes()
+// { filename: "photo.jpg", filesize: 52300, contentType: "image/jpeg", url: "..." }
+```
+
+### Convenience getters
+
+The following methods are shorthand for common `getAttribute` calls:
+
+| Method | Returns |
+|---|---|
+| `getURL()` | `string` — the `url` attribute |
+| `getHref()` | `string` — the `href` attribute |
+| `getFilename()` | `string` — the `filename` attribute (empty string if unset) |
+| `getFilesize()` | `number` — the `filesize` attribute |
+| `getFormattedFilesize()` | `string` — human-readable file size (uses `Trix.config.fileSize.formatter`) |
+| `getExtension()` | `string` — lowercase file extension derived from `filename` |
+| `getContentType()` | `string` — the `contentType` attribute |
+| `getContent()` | `string` — the `content` attribute |
+| `getWidth()` | `number` — the `width` attribute |
+| `getHeight()` | `number` — the `height` attribute |
+
+---
+
+## Setting attributes
+
+### `setAttribute(name, value)`
+
+Sets a single attribute on the attachment and notifies any delegates of the change.
+
+<ParamField body="name" type="string" required>
+  The attribute name.
+</ParamField>
+
+<ParamField body="value" type="any" required>
+  The new value.
+</ParamField>
+
+```javascript
+attachment.setAttribute("url", "https://example.com/uploads/photo.jpg")
+```
+
+### `setAttributes(attributes)`
+
+Merges the given object into the attachment's current attributes. Only keys present in the argument are changed.
+
+<ParamField body="attributes" type="object" required>
+  An object of attribute name-value pairs to merge.
+</ParamField>
+
+```javascript
+attachment.setAttributes({
+  url: "https://example.com/uploads/photo.jpg",
+  width: 800,
+  height: 600
+})
+```
+
+---
+
+## Upload progress
+
+### `setUploadProgress(value)`
+
+Sets the upload progress for a pending attachment. Use this inside a `trix-attachment-add` handler to reflect upload state in the editor UI.
+
+<ParamField body="value" type="number" required>
+  A number between `0` and `100` representing the percentage complete.
+</ParamField>
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+
+  if (attachment.file) {
+    const formData = new FormData()
+    formData.append("file", attachment.file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", "/uploads")
+
+    xhr.upload.onprogress = (event) => {
+      const progress = (event.loaded / event.total) * 100
+      attachment.setUploadProgress(progress)
+    }
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const { url } = JSON.parse(xhr.responseText)
+        attachment.setAttributes({ url })
+      }
+    }
+
+    xhr.send(formData)
+  }
+})
+```
+
+### `getUploadProgress()`
+
+Returns the current upload progress value.
+
+<ResponseField name="returns" type="number">
+  A number between `0` and `100`. Returns `0` if not yet set.
+</ResponseField>
+
+---
+
+## Preview URL
+
+### `setPreviewURL(url)`
+
+Sets the URL used to render a preview of the attachment in the editor. Call this in a `trix-attachment-add` handler to show a custom preview before the file is uploaded.
+
+<ParamField body="url" type="string" required>
+  The URL to use as the preview image source.
+</ParamField>
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  if (event.attachment.file instanceof File) {
+    event.attachment.setAttribute("previewable", true)
+    event.attachment.setPreviewURL("https://example.com/placeholder.png")
+  }
+})
+```
+
+### `getPreviewURL()`
+
+Returns the current preview URL.
+
+<ResponseField name="returns" type="string | undefined">
+  The preview URL, or `undefined` if none has been set.
+</ResponseField>
+
+---
+
+## State inspection
+
+### `isPending()`
+
+Returns `true` if the attachment has an associated `File` that has not yet been uploaded (i.e., neither `url` nor `href` is set).
+
+<ResponseField name="returns" type="boolean">
+  `true` if the attachment is waiting to be uploaded.
+</ResponseField>
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  if (event.attachment.isPending()) {
+    // upload the file, then call attachment.setAttributes({ url: "..." })
+  }
+})
+```
+
+### `isPreviewable()`
+
+Returns `true` if the attachment should be rendered as an image preview. By default this is determined by matching the `contentType` against `Attachment.previewablePattern`. You can override it by setting the `previewable` attribute.
+
+<ResponseField name="returns" type="boolean" />
+
+### `getType()`
+
+Returns a string classifying the attachment.
+
+<ResponseField name="returns" type="string">
+  One of:
+  - `"content"` — has a `content` attribute (custom HTML)
+  - `"preview"` — is previewable (image)
+  - `"file"` — all other file attachments
+</ResponseField>
+
+---
+
+## The `file` property
+
+When an attachment is created from a dropped or pasted file, Trix stores the DOM `File` object on `attachment.file`. This property is available inside `trix-attachment-add` handlers and is cleared after the file is uploaded and a URL is set.
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+  console.log(attachment.file)  // File | null
+})
+```
+
+Use `getFile()` and `setFile(file)` as accessor methods:
+
+```javascript
+const file = attachment.getFile()  // DOM File object or null
+```
+
+---
+
+## Static properties
+
+### `Attachment.previewablePattern`
+
+A regular expression that determines which content types are rendered as image previews. The default pattern matches:
+
+- `image/gif`
+- `image/png`
+- `image/webp`
+- `image/jpg`
+- `image/jpeg`
+
+```javascript
+Trix.Attachment.previewablePattern  // /^image(\/(gif|png|webp|jpe?g)|$)/
+```
+
+You cannot reassign this property at runtime to change preview behavior — instead, set the `previewable` attribute on the attachment:
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  if (event.attachment.file instanceof File) {
+    // Force preview rendering for any file type
+    event.attachment.setAttribute("previewable", true)
+    event.attachment.setPreviewURL(myPreviewURL)
+  }
+})
+```
+
+---
+
+## ManagedAttachment
+
+When you receive an attachment from a `trix-attachment-add`, `trix-attachment-edit`, or `trix-attachment-remove` event, it is a `ManagedAttachment` instance rather than a plain `Attachment`. `ManagedAttachment` proxies all `Attachment` methods listed above, and adds one additional method:
+
+### `attachment.remove()`
+
+Requests removal of this attachment from the document.
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+
+  if (!isAllowed(attachment.getContentType())) {
+    attachment.remove()
+  }
+})
+```

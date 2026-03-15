@@ -1,0 +1,136 @@
+---
+title: "Creating an Editor"
+description: "Learn how to embed a Trix rich text editor in your page, configure a toolbar, wire up a hidden input, and control editor state."
+---
+
+Place an empty `<trix-editor></trix-editor>` tag on the page. Trix registers a custom element and automatically inserts a `<trix-toolbar>` immediately before the editor when it connects to the DOM.
+
+```html
+<trix-editor></trix-editor>
+```
+
+## Common attributes
+
+`<trix-editor>` supports several attributes that match familiar HTML form element behavior.
+
+<AccordionGroup>
+  <Accordion title="autofocus">
+    Focus the editor when the page loads, identical to the native `autofocus` attribute on `<textarea>`.
+
+    ```html
+    <trix-editor autofocus></trix-editor>
+    ```
+  </Accordion>
+
+  <Accordion title="placeholder">
+    Display placeholder text when the editor is empty. The text is rendered via a CSS `::before` pseudo-element using `attr(placeholder)`, so it cannot be selected.
+
+    ```html
+    <trix-editor placeholder="Write something…"></trix-editor>
+    ```
+  </Accordion>
+
+  <Accordion title="Auto-expanding height">
+    Unlike `<textarea>`, `<trix-editor>` expands vertically to fit its contents automatically. No JavaScript or resize observers are needed — the element is `display: block` and grows with its content.
+  </Accordion>
+</AccordionGroup>
+
+## Wiring to a hidden input
+
+To submit editor content with a `<form>`, create a hidden input with an `id` and reference it via the `input` attribute on `<trix-editor>`. Trix keeps the hidden input's `value` in sync with every change.
+
+```html
+<form method="post" action="/posts">
+  <input id="post_content" type="hidden" name="content">
+  <trix-editor input="post_content"></trix-editor>
+  <button type="submit">Save</button>
+</form>
+```
+
+<Note>
+  Trix always defers to the associated `<input>` element when the `[input]` attribute is set. The `[name]` and `value` on the hidden input control what gets submitted in the form.
+</Note>
+
+## Custom toolbar placement
+
+By default, Trix inserts the toolbar directly before the editor. To place the toolbar somewhere else — for example above other content — render a `<trix-toolbar>` element with an `id` and point the editor's `toolbar` attribute at that `id`.
+
+```html
+<main>
+  <trix-toolbar id="my_toolbar"></trix-toolbar>
+  <div class="more-stuff-inbetween"></div>
+  <trix-editor toolbar="my_toolbar" input="my_input"></trix-editor>
+</main>
+```
+
+<Warning>
+  When placing the toolbar elsewhere, make sure it appears in the DOM before or alongside the editor — not inside a `<label>` element that wraps the editor. See [Accessibility](/guides/accessibility) for details.
+</Warning>
+
+## Disabling the editor
+
+Render `<trix-editor>` with the `[disabled]` attribute to make it non-editable. A disabled editor cannot receive focus and its value is excluded from form submissions.
+
+```html
+<trix-editor disabled></trix-editor>
+```
+
+You can toggle the disabled state at runtime with either the attribute or the `.disabled` property:
+
+```html
+<trix-editor id="editor" disabled></trix-editor>
+
+<script>
+  const editor = document.getElementById("editor")
+
+  editor.toggleAttribute("disabled", false) // enable
+  editor.disabled = true                     // disable
+</script>
+```
+
+When disabled, the element matches the [`:disabled` CSS pseudo-class](https://developer.mozilla.org/en-US/docs/Web/CSS/:disabled), which you can use for styling:
+
+```css
+trix-editor:disabled {
+  opacity: 0.5;
+  background-color: #f5f5f5;
+}
+```
+
+## Element Internals and form association
+
+Trix integrates `<trix-editor>` with the browser's [Element Internals](https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals) API when available. This makes the editor a first-class form control with support for `validity`, `required`, `:disabled`, and form submission without a separate hidden input.
+
+The `formAssociated` static property controls this behavior and defaults to `true` in browsers that support Element Internals:
+
+```javascript
+import Trix from "trix"
+
+// Opt out of Element Internals integration
+Trix.elements.TrixEditorElement.formAssociated = false
+```
+
+### Input-free mode
+
+When Element Internals is active you can skip the hidden `<input>` entirely. Set `willCreateInput = false` on the element before it initializes:
+
+```javascript
+addEventListener("trix-before-initialize", (event) => {
+  const trixEditor = event.target
+  trixEditor.willCreateInput = false
+})
+```
+
+Then remove the `[input]` attribute from the markup:
+
+```html
+<trix-editor name="content"></trix-editor>
+```
+
+<Warning>
+  Without a hidden `<input>` element, the editor's value is only included in form submissions when you provide a `[name]` attribute. Set `[name]` to the same value the hidden input's `[name]` would have had.
+</Warning>
+
+<Note>
+  Trix always uses an associated `<input type="hidden">` when the `[input]` attribute is present, regardless of `willCreateInput`. Remove the `[input]` attribute when migrating to input-free mode.
+</Note>

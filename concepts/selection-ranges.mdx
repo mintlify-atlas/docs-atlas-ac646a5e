@@ -1,0 +1,142 @@
+---
+title: "Selection and Ranges"
+description: "How Trix addresses positions and ranges inside a document, and how to read and manipulate the selection programmatically."
+---
+
+Trix treats a document as a flat sequence of individually addressable characters. Every position in that sequence is an integer **index**, and a pair of positions forms a **range**. The editor's current selection is always represented as a range.
+
+## Positions
+
+A **position** is a zero-based integer character index measured across the entire document, including newline characters that separate blocks. For example, in a document containing `"Hello\nWorld\n"`, position `0` is before `H`, position `5` is before the newline, and position `6` is before `W`.
+
+<Note>
+  Attachment pieces always occupy exactly one position, even though they may render as a large image or card in the editor.
+</Note>
+
+## Ranges
+
+A **range** is a two-element array `[start, end]`. The start position is inclusive and the end position is exclusive, following standard JavaScript conventions.
+
+```javascript
+// Select the first five characters
+element.editor.setSelectedRange([0, 5])
+
+// Select the first character only
+element.editor.setSelectedRange([0, 1])
+```
+
+### Collapsed selections
+
+When `start === end`, the range is **collapsed** — the editor shows a blinking cursor rather than a highlighted span. For convenience, the following three calls are equivalent:
+
+```javascript
+element.editor.setSelectedRange(1)
+element.editor.setSelectedRange([1])
+element.editor.setSelectedRange([1, 1])
+```
+
+## Reading the selection
+
+Call `editor.getSelectedRange()` to get the current selection as a `[start, end]` array:
+
+```javascript
+const element = document.querySelector("trix-editor")
+element.editor.getSelectedRange()  // e.g. [0, 0] when cursor is at start
+```
+
+You can listen for selection changes with the `trix-selection-change` event:
+
+```javascript
+document.addEventListener("trix-selection-change", (event) => {
+  const range = event.target.editor.getSelectedRange()
+  console.log("Selection changed to:", range)
+})
+```
+
+## Setting the selection
+
+```javascript
+// Move cursor to position 3 (collapsed selection)
+element.editor.setSelectedRange(3)
+
+// Select characters at positions 0 through 4 (five characters)
+element.editor.setSelectedRange([0, 5])
+```
+
+<Tip>
+  Always call `setSelectedRange` before insertion methods like `insertString` or `insertHTML` to control exactly where new content appears.
+</Tip>
+
+## Moving the cursor
+
+Use `moveCursorInDirection` to move the cursor one character at a time. Pass `"forward"` or `"backward"`:
+
+```javascript
+// Move the cursor backward one character
+element.editor.moveCursorInDirection("backward")
+
+// Move the cursor forward one character
+element.editor.moveCursorInDirection("forward")
+```
+
+## Expanding the selection
+
+Use `expandSelectionInDirection` to grow the selection by one character in the given direction without moving the anchor point:
+
+```javascript
+// Expand the selection forward by one character
+element.editor.expandSelectionInDirection("forward")
+
+// Expand the selection backward by one character
+element.editor.expandSelectionInDirection("backward")
+```
+
+## Converting a position to pixel coordinates
+
+`getClientRectAtPosition` returns a [`DOMRect`](https://drafts.fxtf.org/geometry/#DOMRect) describing the bounding box of the character at the given position. This is useful for positioning pop-up menus or tooltips relative to the cursor.
+
+```javascript
+const rect = element.editor.getClientRectAtPosition(0)
+console.log(rect.left, rect.top)   // e.g. 17, 49
+console.log(rect.width, rect.height)
+```
+
+Internally, this method converts the position to a `locationRange` (a `{ index, offset }` pair) and asks the selection manager for the corresponding client rect:
+
+```javascript
+// From src/trix/models/editor.js
+getClientRectAtPosition(position) {
+  const locationRange = this.getDocument().locationRangeFromRange([position, position + 1])
+  return this.selectionManager.getClientRectAtLocationRange(locationRange)
+}
+```
+
+## Common selection patterns
+
+<AccordionGroup>
+  <Accordion title="Select all content">
+    ```javascript
+    const length = element.editor.getDocument().getLength()
+    element.editor.setSelectedRange([0, length])
+    ```
+  </Accordion>
+  <Accordion title="Insert text at current cursor position">
+    ```javascript
+    // No need to call setSelectedRange if cursor is already where you want it
+    element.editor.insertString("inserted text")
+    ```
+  </Accordion>
+  <Accordion title="Replace a specific range">
+    ```javascript
+    // Select positions 2-7, then insert replaces the selection
+    element.editor.setSelectedRange([2, 7])
+    element.editor.insertString("replacement")
+    ```
+  </Accordion>
+  <Accordion title="Delete a specific range">
+    ```javascript
+    element.editor.setSelectedRange([0, 4])
+    element.editor.deleteInDirection("forward")
+    ```
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,369 @@
+---
+title: Events
+description: DOM events emitted by trix-editor elements — when they fire, what properties they carry, and how to handle them.
+---
+
+Trix communicates editor state changes through standard DOM `CustomEvent` instances dispatched on the `<trix-editor>` element. Listen with `addEventListener` on the editor element, a containing element, or `document`.
+
+```javascript
+document.addEventListener("trix-initialize", (event) => {
+  const editor = event.target.editor
+})
+```
+
+---
+
+## Lifecycle events
+
+### `trix-before-initialize`
+
+Fires when the `<trix-editor>` element is attached to the DOM, before Trix installs its `editor` object or creates the hidden input. This is the correct moment to change `Trix.config`.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+
+```javascript
+document.addEventListener("trix-before-initialize", (event) => {
+  // Mutate Trix.config before the editor is set up
+  Trix.config.blockAttributes.heading2 = {
+    tagName: "h2",
+    terminal: true,
+    breakOnReturn: true,
+    group: false,
+  }
+})
+```
+
+### `trix-initialize`
+
+Fires after the editor is fully initialized and its `editor` property is available. This fires asynchronously on the next animation frame after the element connects.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `target.editor` | `Trix.Editor` | The initialized editor instance |
+
+```javascript
+document.addEventListener("trix-initialize", (event) => {
+  const { editor } = event.target
+  editor.loadHTML("<p>Welcome!</p>")
+})
+```
+
+---
+
+## Content events
+
+### `trix-change`
+
+Fires whenever the editor's content changes — typing, formatting, paste, attachment insertion, and programmatic edits all trigger this event.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+
+```javascript
+document.addEventListener("trix-change", (event) => {
+  const editorElement = event.target
+  console.log(editorElement.value)  // current HTML string
+})
+```
+
+Use `trix-change` for custom validation:
+
+```javascript
+document.addEventListener("trix-change", (event) => {
+  const el = event.target
+  const text = el.editor.getDocument().toString().trim()
+  el.setCustomValidity(text.length < 10 ? "Too short." : "")
+})
+```
+
+### `trix-before-render`
+
+Fires before Trix replaces the editor's DOM with a newly computed document fragment. You can replace the `render` function on the event to intercept and modify the content.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.render` | `function` | The rendering function. Override this to customize rendering. Signature: `(editorElement: HTMLElement, documentFragment: DocumentFragment) => void` |
+
+```javascript
+document.addEventListener("trix-before-render", (event) => {
+  const defaultRender = event.render
+
+  event.render = function(editorElement, documentFragment) {
+    // Modify the fragment before it is written to the DOM
+    documentFragment.querySelectorAll("a").forEach((link) => {
+      link.setAttribute("target", "_blank")
+      link.setAttribute("rel", "noopener noreferrer")
+    })
+
+    defaultRender(editorElement, documentFragment)
+  }
+})
+```
+
+<Warning>
+  By the time `render` is called, Trix has already applied HTML sanitization. Any additional modifications you make to the document fragment bypass sanitization — ensure they are safe.
+</Warning>
+
+---
+
+## Paste events
+
+### `trix-before-paste`
+
+Fires just before pasted content is inserted into the editor. You can modify the paste payload on `event.paste` or call `event.preventDefault()` to cancel the paste.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.paste` | `object` | Paste payload — see below |
+| `event.paste.string` | `string \| undefined` | Plain text being pasted (when pasting plain text) |
+| `event.paste.html` | `string \| undefined` | HTML being pasted (when pasting rich content) |
+| `event.paste.range` | `[number, number]` | The document range where the paste will be inserted |
+
+```javascript
+document.addEventListener("trix-before-paste", (event) => {
+  // Strip all HTML tags from rich-text pastes
+  if (event.paste.html) {
+    const div = document.createElement("div")
+    div.innerHTML = event.paste.html
+    event.paste.string = div.textContent
+    delete event.paste.html
+  }
+})
+```
+
+### `trix-paste`
+
+Fires after pasted content has been inserted into the editor.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.paste` | `object` | Paste payload — see below |
+| `event.paste.string` | `string \| undefined` | The plain text that was pasted |
+| `event.paste.html` | `string \| undefined` | The HTML that was pasted |
+| `event.paste.range` | `[number, number]` | The document range of the inserted content |
+
+```javascript
+document.addEventListener("trix-paste", (event) => {
+  const { paste } = event
+  if (paste.html) {
+    console.log("Pasted HTML:", paste.html)
+  } else if (paste.string) {
+    console.log("Pasted text:", paste.string)
+  }
+  console.log("Inserted at range:", paste.range)
+})
+```
+
+---
+
+## Focus and selection events
+
+### `trix-selection-change`
+
+Fires whenever the selected range changes — cursor movement, text selection, or programmatic selection updates all trigger this event.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+
+```javascript
+document.addEventListener("trix-selection-change", (event) => {
+  const [start, end] = event.target.editor.getSelectedRange()
+  console.log(`Selection: ${start}–${end}`)
+})
+```
+
+### `trix-focus`
+
+Fires when the editor gains focus.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+
+```javascript
+document.addEventListener("trix-focus", (event) => {
+  event.target.classList.add("is-focused")
+})
+```
+
+### `trix-blur`
+
+Fires when the editor loses focus.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+
+```javascript
+document.addEventListener("trix-blur", (event) => {
+  event.target.classList.remove("is-focused")
+})
+```
+
+---
+
+## File and attachment events
+
+### `trix-file-accept`
+
+Fires when a file is dropped onto the editor or pasted from the clipboard, before the file is attached to the document. Call `event.preventDefault()` to reject the file and prevent it from being attached.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.file` | `File` | The DOM `File` object being accepted |
+
+```javascript
+// Reject files larger than 5 MB
+document.addEventListener("trix-file-accept", (event) => {
+  const maxSize = 5 * 1024 * 1024
+  if (event.file.size > maxSize) {
+    event.preventDefault()
+    alert("File must be smaller than 5 MB.")
+  }
+})
+
+// Accept only images
+document.addEventListener("trix-file-accept", (event) => {
+  if (!event.file.type.startsWith("image/")) {
+    event.preventDefault()
+  }
+})
+```
+
+### `trix-attachment-add`
+
+Fires after an attachment has been added to the document. If the attachment has a `file` property, you should upload the file to your server and set the attachment's permanent URL.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.attachment` | `Trix.Attachment` | The attachment object |
+| `event.attachment.file` | `File \| undefined` | Present when the attachment came from a local file drop or paste |
+
+```javascript
+document.addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+
+  if (attachment.file) {
+    uploadFile(attachment.file, (url, href) => {
+      attachment.setAttributes({ url, href })
+    })
+  }
+})
+
+function uploadFile(file, callback) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  fetch("/uploads", { method: "POST", body: formData })
+    .then((res) => res.json())
+    .then(({ url, href }) => callback(url, href))
+}
+```
+
+### `trix-attachment-edit`
+
+Fires when a user edits an attachment in the document (for example, changing its caption).
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.attachment` | `Trix.Attachment` | The attachment object being edited |
+
+```javascript
+document.addEventListener("trix-attachment-edit", (event) => {
+  const { attachment } = event
+  console.log("Attachment edited:", attachment.getAttributes())
+})
+```
+
+### `trix-attachment-remove`
+
+Fires when an attachment is removed from the document. Use this to clean up remotely stored files when users delete attachments.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element |
+| `event.attachment` | `Trix.Attachment` | The attachment object being removed |
+| `event.attachment.getAttribute("url")` | `string \| undefined` | The URL of the stored file, if set |
+
+```javascript
+document.addEventListener("trix-attachment-remove", (event) => {
+  const url = event.attachment.getAttribute("url")
+  if (url) {
+    fetch(url, { method: "DELETE" })
+  }
+})
+```
+
+---
+
+## Action events
+
+### `trix-action-invoke`
+
+Fires when a custom toolbar action (prefixed with `x-`) is clicked. Built-in Trix actions do not fire this event.
+
+**Event properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `target` | `HTMLElement` | The `<trix-editor>` element associated with the toolbar |
+| `event.invokingElement` | `HTMLElement` | The button or element that was clicked |
+| `event.actionName` | `string` | The value of `data-trix-action` on the invoking element (e.g., `"x-insert-mention"`) |
+
+Define a custom button in your toolbar:
+
+```html
+<button type="button" id="mention-btn" data-trix-action="x-insert-mention">
+  @Mention
+</button>
+```
+
+Handle the event:
+
+```javascript
+document.addEventListener("trix-action-invoke", (event) => {
+  const { target, invokingElement, actionName } = event
+
+  if (actionName === "x-insert-mention") {
+    target.editor.insertString("@username")
+    console.log(`Action "${actionName}" triggered by #${invokingElement.id}`)
+  }
+})
+```

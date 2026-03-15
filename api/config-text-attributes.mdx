@@ -1,0 +1,207 @@
+---
+title: Text attributes
+description: Built-in inline formatting attributes and how to register custom text attributes in Trix.config.textAttributes.
+---
+
+Text attributes define **inline** (character-level) formatting in Trix. Each attribute maps a name — used in the document model and toolbar `data-trix-attribute` values — to a descriptor object that tells Trix how to render, parse, and inherit the formatting.
+
+```javascript
+import Trix from "trix"
+
+console.log(Trix.config.textAttributes)
+// {
+//   bold:   { tagName: "strong", inheritable: true, parser: [Function] },
+//   italic: { tagName: "em",     inheritable: true, parser: [Function] },
+//   href:   { groupTagName: "a",                    parser: [Function] },
+//   strike: { tagName: "del",    inheritable: true },
+//   frozen: { style: { backgroundColor: "highlight" } },
+// }
+```
+
+## Attribute descriptor properties
+
+<ParamField path="tagName" type="string">
+  The HTML tag Trix uses to wrap text that has this attribute. For example, `tagName: "strong"` wraps bold text in `<strong>` elements.
+</ParamField>
+
+<ParamField path="groupTagName" type="string">
+  Like `tagName`, but groups adjacent runs of text that share the same attribute value under a single wrapper element. Used by `href` to group linked characters under a single `<a>` tag.
+</ParamField>
+
+<ParamField path="inheritable" type="boolean" default="false">
+  When `true`, the attribute is inherited by child text nodes inside a block — for example, text nested inside a blockquote can inherit `bold`. Set this to `true` for most visual formatting attributes.
+</ParamField>
+
+<ParamField path="parser" type="function">
+  A function called with an `Element` argument during HTML-to-document parsing. Return the attribute value if the element carries this attribute, or a falsy value to indicate it does not. Used to detect formatting from pasted or imported HTML.
+
+  ```javascript
+  parser(element) {
+    // Return true/false or the attribute value
+    return element.style.fontWeight === "bold" || element.style.fontWeight >= 600
+  }
+  ```
+</ParamField>
+
+<ParamField path="style" type="object">
+  An object of CSS style declarations applied inline to text that has this attribute. Used when no HTML tag is appropriate — for example, `frozen` uses `{ backgroundColor: "highlight" }` to render frozen (non-editable) ranges.
+</ParamField>
+
+---
+
+## Built-in attributes
+
+### `bold`
+
+Bold formatting. Wraps selected text in `<strong>`.
+
+```javascript
+{
+  tagName: "strong",
+  inheritable: true,
+  parser(element) {
+    const style = window.getComputedStyle(element)
+    return style.fontWeight === "bold" || style.fontWeight >= 600
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="bold"` with keyboard shortcut `Cmd/Ctrl+B`.
+
+### `italic`
+
+Italic formatting. Wraps selected text in `<em>`.
+
+```javascript
+{
+  tagName: "em",
+  inheritable: true,
+  parser(element) {
+    const style = window.getComputedStyle(element)
+    return style.fontStyle === "italic"
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="italic"` with keyboard shortcut `Cmd/Ctrl+I`.
+
+### `href`
+
+Hyperlink. Groups linked characters under a single `<a>` element with the attribute value as the `href`.
+
+```javascript
+{
+  groupTagName: "a",
+  parser(element) {
+    const matchingSelector = `a:not([data-trix-attachment])`
+    const link = element.closest(matchingSelector)
+    if (link) {
+      return link.getAttribute("href")
+    }
+  },
+}
+```
+
+Default toolbar button: `data-trix-attribute="href"` with keyboard shortcut `Cmd/Ctrl+K`. Activating the `href` attribute opens the link dialog.
+
+Apply programmatically:
+
+```javascript
+editor.insertString("Trix")
+editor.setSelectedRange([0, 4])
+editor.activateAttribute("href", "https://trix-editor.org/")
+```
+
+### `strike`
+
+Strikethrough formatting. Wraps selected text in `<del>`.
+
+```javascript
+{
+  tagName: "del",
+  inheritable: true,
+}
+```
+
+Default toolbar button: `data-trix-attribute="strike"`.
+
+### `frozen`
+
+Marks a range of text as frozen — rendered with a `highlight` background color via inline style. Frozen text cannot be edited by the user.
+
+```javascript
+{
+  style: { backgroundColor: "highlight" },
+}
+```
+
+This attribute has no toolbar button by default.
+
+---
+
+## Adding custom text attributes
+
+Add new keys to `Trix.config.textAttributes` inside a `trix-before-initialize` listener. Then add a corresponding button to the toolbar.
+
+### Example — underline
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.textAttributes.underline = {
+    tagName: "u",
+    inheritable: true,
+    parser(element) {
+      const style = window.getComputedStyle(element)
+      return style.textDecoration.includes("underline")
+    },
+  }
+})
+```
+
+Add the button to the toolbar:
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  // Register the attribute
+  Trix.config.textAttributes.underline = {
+    tagName: "u",
+    inheritable: true,
+    parser(element) {
+      return window.getComputedStyle(element).textDecoration.includes("underline")
+    },
+  }
+
+  // Add a toolbar button
+  const originalGetDefaultHTML = Trix.config.toolbar.getDefaultHTML
+  Trix.config.toolbar.getDefaultHTML = () => {
+    return originalGetDefaultHTML().replace(
+      `data-trix-attribute="strike"`,
+      `data-trix-attribute="strike"`
+        + `</button><button type="button" class="trix-button" data-trix-attribute="underline" title="Underline">U`
+    )
+  }
+})
+```
+
+### Example — custom inline style
+
+Use the `style` property to apply inline CSS without introducing new HTML tags:
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.textAttributes.highlight = {
+    style: { backgroundColor: "yellow" },
+    inheritable: true,
+    parser(element) {
+      return window.getComputedStyle(element).backgroundColor === "rgb(255, 255, 0)"
+    },
+  }
+})
+```
+
+Apply it programmatically:
+
+```javascript
+editor.activateAttribute("highlight")
+editor.insertString("This text is highlighted")
+```

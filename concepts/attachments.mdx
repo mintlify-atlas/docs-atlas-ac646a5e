@@ -1,0 +1,182 @@
+---
+title: "Attachments"
+description: "How Trix handles embedded files and content attachments, including uploading, previewing, and managing attachment lifecycle events."
+---
+
+An **attachment** is any non-text content embedded in a Trix document — an uploaded image, a file, or a self-contained HTML snippet. In the document model, every attachment occupies exactly **one character position**, allowing it to be moved, selected, and deleted like any other character.
+
+## Attachment types
+
+Trix distinguishes three types, determined by the `Attachment` object's attributes:
+
+<CardGroup cols={3}>
+  <Card title="Content" icon="code">
+    Has a `content` attribute containing raw HTML. Rendered as-is, not subject to Trix's document conversion rules.
+  </Card>
+  <Card title="Preview" icon="image">
+    A file whose `contentType` matches `previewablePattern`. Displayed as an inline image with width/height.
+  </Card>
+  <Card title="File" icon="paperclip">
+    Any other file attachment (PDF, ZIP, etc.). Displayed with filename and file size.
+  </Card>
+</CardGroup>
+
+From `src/trix/models/attachment.js`:
+
+```javascript
+getType() {
+  if (this.hasContent()) {
+    return "content"
+  } else if (this.isPreviewable()) {
+    return "preview"
+  } else {
+    return "file"
+  }
+}
+```
+
+## Creating and inserting attachments
+
+### Content attachments
+
+Content attachments let you embed arbitrary HTML as a single, atomic unit in the editor. The HTML is rendered exactly as provided — Trix does not parse or sanitize it through its document model.
+
+```javascript
+const attachment = new Trix.Attachment({ content: '<span class="mention">@trix</span>' })
+element.editor.insertAttachment(attachment)
+```
+
+### File attachments
+
+To insert a DOM `File` object — for example from a file input or drop event:
+
+```javascript
+const file = document.querySelector("input[type=file]").files[0]
+element.editor.insertFile(file)
+```
+
+This creates a pending attachment (no remote URL yet) and fires `trix-attachment-add` so you can upload the file.
+
+## Previewable images
+
+Trix automatically previews attached files whose `contentType` matches:
+
+```javascript
+// From src/trix/models/attachment.js
+static previewablePattern = /^image(\/( gif|png|webp|jpe?g)|$)/
+```
+
+This covers `image/gif`, `image/png`, `image/webp`, `image/jpg`, and `image/jpeg`.
+
+To preview a file type that would not otherwise match — or to override the preview URL — use `trix-attachment-add`:
+
+```javascript
+addEventListener("trix-attachment-add", (event) => {
+  if (event.attachment.file instanceof File) {
+    event.attachment.setAttribute("previewable", true)
+    event.attachment.setPreviewURL("https://example.com/thumb.png")
+  }
+})
+```
+
+## Attachment lifecycle events
+
+### trix-file-accept
+
+Fires just before a dropped or pasted file is attached. Call `preventDefault()` to reject the file entirely:
+
+```javascript
+document.addEventListener("trix-file-accept", (event) => {
+  const { file } = event
+  if (file.size > 5 * 1024 * 1024) {  // reject files larger than 5 MB
+    event.preventDefault()
+    alert("File is too large (maximum 5 MB)")
+  }
+})
+```
+
+### trix-attachment-add
+
+Fires after an attachment is inserted. If the attachment has a `file` property, the file has not yet been stored remotely. Upload it and set the permanent URL:
+
+```javascript
+document.addEventListener("trix-attachment-add", (event) => {
+  const { attachment } = event
+
+  if (attachment.file) {
+    const formData = new FormData()
+    formData.append("file", attachment.file)
+
+    fetch("/uploads", { method: "POST", body: formData })
+      .then((response) => response.json())
+      .then(({ url }) => {
+        attachment.setAttributes({ url, href: url })
+      })
+  }
+})
+```
+
+<Note>
+  An attachment is considered **pending** while `attachment.file` is set and no `url` or `href` attribute has been assigned. Pending attachments are not serialized to JSON.
+</Note>
+
+### trix-attachment-remove
+
+Fires when an attachment is removed from the document. Use this to clean up remotely stored files:
+
+```javascript
+document.addEventListener("trix-attachment-remove", (event) => {
+  const url = event.attachment.getAttribute("url")
+  if (url) {
+    fetch(url, { method: "DELETE" })
+  }
+})
+```
+
+## Managing attachment attributes
+
+All attachment metadata is stored in key/value attributes on the `Attachment` object:
+
+```javascript
+// Read attributes
+attachment.getAttribute("url")          // remote URL
+attachment.getAttribute("filename")     // original file name
+attachment.getAttribute("filesize")     // size in bytes
+attachment.getAttribute("contentType") // MIME type
+attachment.getAttribute("width")
+attachment.getAttribute("height")
+
+// Set one attribute
+attachment.setAttribute("url", "https://cdn.example.com/file.pdf")
+
+// Set multiple at once
+attachment.setAttributes({ url: "https://...", href: "https://..." })
+```
+
+### Upload progress
+
+You can report upload progress to Trix so it can render a progress indicator:
+
+```javascript
+xhr.upload.addEventListener("progress", (event) => {
+  const progress = event.loaded / event.total * 100
+  attachment.setUploadProgress(progress)
+})
+```
+
+## The AttachmentPiece in the document model
+
+At the model layer, an attachment is wrapped in an `AttachmentPiece`. `AttachmentPiece` extends `Piece` and always has `length = 1`. Its `toString()` returns the Unicode Object Replacement Character (`\uFFFC`):
+
+```javascript
+// From src/trix/models/attachment_piece.js
+toString() {
+  return OBJECT_REPLACEMENT_CHARACTER  // "\uFFFC"
+}
+```
+
+Only `caption` and `presentation` are permitted as piece-level attributes on an `AttachmentPiece`. All other attributes (including `href`) are stored on the `Attachment` object itself.
+
+<Warning>
+  An `AttachmentPiece` is only serializable when the attachment is not pending — that is, when `attachment.isPending()` returns `false`. Make sure you set the `url` attribute before saving document state.
+</Warning>

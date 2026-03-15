@@ -1,0 +1,208 @@
+---
+title: "<trix-toolbar>"
+description: The trix-toolbar custom element that renders formatting controls for an associated trix-editor.
+---
+
+The `<trix-toolbar>` element renders the button row and dialogs that control a Trix editor. By default Trix inserts one automatically, but you can place it manually anywhere in the DOM.
+
+## Auto-created toolbar
+
+When a `<trix-editor>` element connects to the DOM without a `toolbar` attribute, Trix creates a `<trix-toolbar>` and inserts it immediately before the editor:
+
+```html
+<!-- What you write -->
+<trix-editor></trix-editor>
+
+<!-- What Trix renders -->
+<trix-toolbar id="trix-toolbar-1"></trix-toolbar>
+<trix-editor toolbar="trix-toolbar-1" input="trix-input-1"></trix-editor>
+<input type="hidden" id="trix-input-1">
+```
+
+## Manual placement
+
+To control where the toolbar appears, render a `<trix-toolbar>` with an `id` and point the editor's `toolbar` attribute at that id:
+
+```html
+<trix-toolbar id="my-toolbar"></trix-toolbar>
+
+<div class="editor-container">
+  <trix-editor toolbar="my-toolbar" input="my-input"></trix-editor>
+</div>
+
+<input id="my-input" type="hidden" name="content">
+```
+
+<Warning>
+  When you place a `<trix-editor>` inside a `<label>`, render the `<trix-toolbar>` outside of the label to avoid accessibility and interaction problems.
+</Warning>
+
+## Default HTML structure
+
+When the toolbar element connects with empty `innerHTML`, it calls `Trix.config.toolbar.getDefaultHTML()` and sets the result as its content. The default structure is:
+
+```html
+<div class="trix-button-row">
+  <!-- Text formatting -->
+  <span class="trix-button-group trix-button-group--text-tools"
+        data-trix-button-group="text-tools">
+    <button type="button" class="trix-button trix-button--icon trix-button--icon-bold"
+            data-trix-attribute="bold" data-trix-key="b" title="Bold" tabindex="-1">Bold</button>
+    <button type="button" class="trix-button trix-button--icon trix-button--icon-italic"
+            data-trix-attribute="italic" data-trix-key="i" title="Italic" tabindex="-1">Italic</button>
+    <button type="button" class="trix-button trix-button--icon trix-button--icon-strike"
+            data-trix-attribute="strike" title="Strikethrough" tabindex="-1">Strikethrough</button>
+    <button type="button" class="trix-button trix-button--icon trix-button--icon-link"
+            data-trix-attribute="href" data-trix-action="link" data-trix-key="k"
+            title="Link" tabindex="-1">Link</button>
+  </span>
+
+  <!-- Block formatting -->
+  <span class="trix-button-group trix-button-group--block-tools"
+        data-trix-button-group="block-tools">
+    <button type="button" data-trix-attribute="heading1" title="Heading" tabindex="-1">Heading</button>
+    <button type="button" data-trix-attribute="quote" title="Quote" tabindex="-1">Quote</button>
+    <button type="button" data-trix-attribute="code" title="Code" tabindex="-1">Code</button>
+    <button type="button" data-trix-attribute="bullet" title="Bullets" tabindex="-1">Bullets</button>
+    <button type="button" data-trix-attribute="number" title="Numbers" tabindex="-1">Numbers</button>
+    <button type="button" data-trix-action="decreaseNestingLevel" title="Decrease Level" tabindex="-1">Decrease Level</button>
+    <button type="button" data-trix-action="increaseNestingLevel" title="Increase Level" tabindex="-1">Increase Level</button>
+  </span>
+
+  <!-- File attachment -->
+  <span class="trix-button-group trix-button-group--file-tools"
+        data-trix-button-group="file-tools">
+    <button type="button" data-trix-action="attachFiles" title="Attach Files" tabindex="-1">Attach Files</button>
+  </span>
+
+  <span class="trix-button-group-spacer"></span>
+
+  <!-- History -->
+  <span class="trix-button-group trix-button-group--history-tools"
+        data-trix-button-group="history-tools">
+    <button type="button" data-trix-action="undo" data-trix-key="z" title="Undo" tabindex="-1">Undo</button>
+    <button type="button" data-trix-action="redo" data-trix-key="shift+z" title="Redo" tabindex="-1">Redo</button>
+  </span>
+</div>
+
+<!-- Link dialog -->
+<div class="trix-dialogs" data-trix-dialogs>
+  <div class="trix-dialog trix-dialog--link"
+       data-trix-dialog="href" data-trix-dialog-attribute="href">
+    <div class="trix-dialog__link-fields">
+      <input type="url" name="href" class="trix-input trix-input--dialog"
+             placeholder="Enter a URL…" aria-label="URL"
+             data-trix-validate-href required data-trix-input>
+      <div class="trix-button-group">
+        <input type="button" class="trix-button trix-button--dialog"
+               value="Link" data-trix-method="setAttribute">
+        <input type="button" class="trix-button trix-button--dialog"
+               value="Unlink" data-trix-method="removeAttribute">
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+## Data attributes
+
+Trix uses `data-*` attributes on toolbar elements to wire up behavior without requiring JavaScript event listeners in user code.
+
+### `data-trix-attribute`
+
+Toggles the named text or block attribute on the current selection. The value must match a key in `Trix.config.textAttributes` or `Trix.config.blockAttributes`.
+
+```html
+<!-- Applies bold (text attribute) -->
+<button type="button" data-trix-attribute="bold">Bold</button>
+
+<!-- Applies heading1 (block attribute) -->
+<button type="button" data-trix-attribute="heading1">Heading</button>
+```
+
+### `data-trix-action`
+
+Invokes a named Trix action when clicked.
+
+**Built-in actions:**
+
+| Action | Description |
+|---|---|
+| `undo` | Undo the last change |
+| `redo` | Redo the last undone change |
+| `link` | Open the link dialog |
+| `increaseNestingLevel` | Increase nesting for lists and quotes |
+| `decreaseNestingLevel` | Decrease nesting for lists and quotes |
+| `attachFiles` | Open the file picker |
+
+**Custom actions** must be prefixed with `x-`. They fire a `trix-action-invoke` event instead of being handled internally:
+
+```html
+<button type="button" data-trix-action="x-insert-mention">@Mention</button>
+```
+
+```javascript
+document.addEventListener("trix-action-invoke", (event) => {
+  if (event.actionName === "x-insert-mention") {
+    // handle the custom action
+  }
+})
+```
+
+### `data-trix-key`
+
+Binds a keyboard shortcut to this button. The value is a key name optionally prefixed with `shift+`. Trix listens for Meta (macOS) or Ctrl (Windows/Linux) combined with the given key.
+
+```html
+<button data-trix-attribute="bold" data-trix-key="b">Bold</button>       <!-- Cmd/Ctrl+B -->
+<button data-trix-attribute="italic" data-trix-key="i">Italic</button>   <!-- Cmd/Ctrl+I -->
+<button data-trix-action="redo" data-trix-key="shift+z">Redo</button>    <!-- Cmd/Ctrl+Shift+Z -->
+```
+
+## JavaScript properties
+
+### `editorElement`
+
+Returns the first `<trix-editor>` element whose `toolbar` attribute matches this toolbar's `id`. Returns `undefined` if the toolbar has no `id` or no matching editor exists.
+
+```javascript
+const toolbar = document.querySelector("trix-toolbar")
+console.log(toolbar.editorElement)  // <trix-editor> or undefined
+```
+
+### `editorElements`
+
+Returns an array of all `<trix-editor>` elements associated with this toolbar.
+
+```javascript
+const toolbar = document.getElementById("shared-toolbar")
+const editors = toolbar.editorElements  // Array<trix-editor>
+```
+
+## Customizing the default HTML
+
+Override `Trix.config.toolbar.getDefaultHTML` before any `<trix-toolbar>` elements connect to the DOM. Any toolbar that connects with empty `innerHTML` will call this function to get its markup.
+
+```javascript
+import Trix from "trix"
+
+document.addEventListener("trix-before-initialize", () => {
+  const originalGetDefaultHTML = Trix.config.toolbar.getDefaultHTML.bind(Trix.config.toolbar)
+
+  Trix.config.toolbar.getDefaultHTML = () => {
+    const defaultHTML = originalGetDefaultHTML()
+    // Append a custom button group to the default toolbar
+    return defaultHTML + `
+      <span class="trix-button-group" data-trix-button-group="custom-tools">
+        <button type="button" class="trix-button" data-trix-action="x-my-action">
+          My Action
+        </button>
+      </span>
+    `
+  }
+})
+```
+
+<Note>
+  Override `getDefaultHTML` inside a `trix-before-initialize` listener to ensure it runs before toolbars are populated. If you override it after toolbars have already connected, use `toolbar.innerHTML = Trix.config.toolbar.getDefaultHTML()` to re-render a specific toolbar.
+</Note>

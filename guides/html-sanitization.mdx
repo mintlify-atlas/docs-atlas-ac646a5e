@@ -1,0 +1,96 @@
+---
+title: "HTML Sanitization"
+description: "Understand how Trix uses DOMPurify to sanitize editor content, how to extend the default configuration, and how to safely customize rendering."
+---
+
+Trix uses [DOMPurify](https://github.com/cure53/DOMPurify/) to sanitize all HTML that enters the editor — from paste, drag-and-drop, programmatic insertion, or initial load. Sanitization happens before content is committed to the document model.
+
+## Default DOMPurify configuration
+
+The default config is defined in `src/trix/config/dompurify.js`:
+
+```javascript
+export default {
+  ADD_ATTR: [ "language" ],
+  SAFE_FOR_XML: false,
+  RETURN_DOM: true
+}
+```
+
+- **`ADD_ATTR: ["language"]`** — preserves the `language` attribute used by code blocks (`<pre language="ruby">`).
+- **`SAFE_FOR_XML: false`** — disables extra XML safety escaping that would corrupt valid HTML content.
+- **`RETURN_DOM: true`** — tells DOMPurify to return a DOM node rather than an HTML string, which is what Trix's internal parser consumes.
+
+## Accessing the config
+
+The live configuration object is at `Trix.config.dompurify`. You can read and write properties on it directly.
+
+```javascript
+import Trix from "trix"
+
+console.log(Trix.config.dompurify)
+// => { ADD_ATTR: ["language"], SAFE_FOR_XML: false, RETURN_DOM: true }
+```
+
+## Adding allowed tags
+
+DOMPurify strips unknown HTML tags by default. To preserve custom or non-standard tags, add them to `ADD_TAGS`:
+
+```javascript
+import Trix from "trix"
+
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.dompurify.ADD_TAGS = ["my-custom-tag"]
+})
+```
+
+Multiple tags:
+
+```javascript
+Trix.config.dompurify.ADD_TAGS = ["mark", "kbd", "my-widget"]
+```
+
+## Adding allowed attributes
+
+To preserve additional attributes on allowed elements, append to `ADD_ATTR`:
+
+```javascript
+import Trix from "trix"
+
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.dompurify.ADD_ATTR = [
+    ...Trix.config.dompurify.ADD_ATTR,
+    "data-mention-id",
+    "data-user"
+  ]
+})
+```
+
+<Note>
+  Spread the existing `ADD_ATTR` array rather than replacing it to preserve the default `"language"` attribute.
+</Note>
+
+## Customizing rendering with trix-before-render
+
+To apply transformations to the HTML fragment just before Trix writes it to the DOM, replace the `render` function on the `trix-before-render` event:
+
+```javascript
+document.addEventListener("trix-before-render", (event) => {
+  const defaultRender = event.render
+
+  event.render = function(editorElement, documentFragment) {
+    // Modify the documentFragment before it is rendered
+    documentFragment.querySelectorAll("a").forEach((a) => {
+      a.setAttribute("rel", "noopener noreferrer")
+      a.setAttribute("target", "_blank")
+    })
+
+    // Delegate to the default renderer
+    defaultRender(editorElement, documentFragment)
+  }
+})
+```
+
+<Warning>
+  By the time `render(editorElement, documentFragment)` is called, Trix has already completed HTML sanitization. Any further modifications you make to the `documentFragment` bypass DOMPurify. Ensure all custom transformations are safe and cannot introduce XSS vectors.
+</Warning>

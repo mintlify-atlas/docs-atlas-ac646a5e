@@ -1,0 +1,261 @@
+---
+title: Trix.config
+description: Top-level configuration object for customizing Trix behavior — toolbar HTML, formatting attributes, sanitization, attachments, language strings, and more.
+---
+
+`Trix.config` is the central configuration object for the Trix editor. Its properties control the toolbar HTML, text and block formatting attributes, HTML sanitization, attachment handling, language strings, undo behavior, and input processing.
+
+```javascript
+import Trix from "trix"
+
+console.log(Trix.config)
+// {
+//   toolbar:         { getDefaultHTML: [Function] },
+//   textAttributes:  { bold: {…}, italic: {…}, href: {…}, strike: {…}, frozen: {…} },
+//   blockAttributes: { default: {…}, quote: {…}, heading1: {…}, code: {…}, … },
+//   dompurify:       { ADD_ATTR: […], SAFE_FOR_XML: false, RETURN_DOM: true },
+//   attachments:     { preview: {…}, file: {…} },
+//   lang:            { bold: "Bold", italic: "Italic", … },
+//   undo:            { interval: 5000 },
+//   input:           { level2Enabled: true, … },
+//   parser:          { removeBlankTableCells: false, … },
+// }
+```
+
+## When to configure
+
+Most configuration must be applied before the editor initializes. Listen for `trix-before-initialize` to make changes at the right time:
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  // Safe to modify Trix.config here
+  Trix.config.lang.bold = "Fett"  // German
+})
+```
+
+<Warning>
+  Modifying `Trix.config` after an editor has already initialized may have no effect or produce unexpected behavior. Always apply configuration changes inside a `trix-before-initialize` listener.
+</Warning>
+
+---
+
+## `Trix.config.toolbar`
+
+Controls the HTML content injected into every `<trix-toolbar>` element that connects to the DOM with empty `innerHTML`.
+
+### `getDefaultHTML()`
+
+Returns the default toolbar HTML string. Override this function to replace or augment the built-in toolbar.
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  const originalGetDefaultHTML = Trix.config.toolbar.getDefaultHTML
+
+  Trix.config.toolbar.getDefaultHTML = () => {
+    return originalGetDefaultHTML() + `
+      <span class="trix-button-group" data-trix-button-group="custom">
+        <button type="button" class="trix-button" data-trix-action="x-clear-formatting">
+          Clear Formatting
+        </button>
+      </span>
+    `
+  }
+})
+```
+
+See the [trix-toolbar element reference](/api/trix-toolbar-element) for the full default HTML structure and a description of each `data-trix-*` attribute.
+
+---
+
+## `Trix.config.textAttributes`
+
+Defines inline (character-level) formatting attributes. Each key maps to an object that tells Trix how to apply and parse that formatting. Buttons in the toolbar with `data-trix-attribute` pointing to one of these keys will toggle the corresponding inline style.
+
+See [Text Attributes](/api/config-text-attributes) for the complete reference, including all built-in attributes and instructions for adding custom ones.
+
+---
+
+## `Trix.config.blockAttributes`
+
+Defines block-level formatting attributes. Each key maps to an object that describes the HTML element used to render that block type, and its nesting and grouping behavior.
+
+See [Block Attributes](/api/config-block-attributes) for the complete reference, including all built-in attributes and instructions for adding custom ones.
+
+---
+
+## `Trix.config.dompurify`
+
+Configuration object passed directly to [DOMPurify](https://github.com/cure53/DOMPurify) when sanitizing editor content. The default values are:
+
+```javascript
+{
+  ADD_ATTR: ["language"],   // Allow the "language" attribute (used by code blocks)
+  SAFE_FOR_XML: false,
+  RETURN_DOM: true
+}
+```
+
+Extend this object to allow additional tags or attributes through sanitization:
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  // Allow a custom element tag
+  Trix.config.dompurify.ADD_TAGS = ["my-highlight"]
+
+  // Allow additional attributes
+  Trix.config.dompurify.ADD_ATTR = [
+    ...Trix.config.dompurify.ADD_ATTR,
+    "data-mention-id",
+  ]
+})
+```
+
+Refer to the [DOMPurify documentation](https://github.com/cure53/DOMPurify#can-i-configure-dompurify) for the full list of supported configuration options.
+
+---
+
+## `Trix.config.attachments`
+
+Controls the default presentation and caption behavior for attachments. The two top-level keys are `preview` (for previewable files such as images) and `file` (for non-previewable files).
+
+```javascript
+// Default values
+{
+  preview: {
+    presentation: "gallery",
+    caption: {
+      name: true,  // show the file name in the caption
+      size: true,  // show the file size in the caption
+    },
+  },
+  file: {
+    caption: {
+      size: true,  // show the file size (no file name for non-preview files)
+    },
+  },
+}
+```
+
+---
+
+## `Trix.config.lang`
+
+String values used for toolbar button titles, dialog labels, and captions. Override individual keys to translate the UI or rename labels.
+
+```javascript
+// Default values
+{
+  attachFiles:        "Attach Files",
+  bold:               "Bold",
+  bullets:            "Bullets",
+  byte:               "Byte",
+  bytes:              "Bytes",
+  captionPlaceholder: "Add a caption\u2026",
+  code:               "Code",
+  heading1:           "Heading",
+  indent:             "Increase Level",
+  italic:             "Italic",
+  link:               "Link",
+  numbers:            "Numbers",
+  outdent:            "Decrease Level",
+  quote:              "Quote",
+  redo:               "Redo",
+  remove:             "Remove",
+  strike:             "Strikethrough",
+  undo:               "Undo",
+  unlink:             "Unlink",
+  url:                "URL",
+  urlPlaceholder:     "Enter a URL\u2026",
+  GB:                 "GB",
+  KB:                 "KB",
+  MB:                 "MB",
+  PB:                 "PB",
+  TB:                 "TB",
+}
+```
+
+Example — German localization:
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Object.assign(Trix.config.lang, {
+    bold:    "Fett",
+    italic:  "Kursiv",
+    strike:  "Durchgestrichen",
+    link:    "Link",
+    heading1: "\xDCberschrift",
+    quote:   "Zitat",
+    code:    "Code",
+    bullets: "Aufz\xe4hlung",
+    numbers: "Nummerierung",
+    undo:    "R\xfckg\xe4ngig",
+    redo:    "Wiederholen",
+    attachFiles: "Dateien anh\xe4ngen",
+  })
+})
+```
+
+<Note>
+  `lang` strings are embedded into the toolbar HTML when `getDefaultHTML()` is called. Changing `lang` after the toolbar has connected will not update existing toolbar text. Apply lang changes inside `trix-before-initialize`.
+</Note>
+
+---
+
+## `Trix.config.undo`
+
+Controls undo history grouping.
+
+```javascript
+// Default
+{ interval: 5000 }  // milliseconds
+```
+
+<ParamField path="interval" type="number" default="5000">
+  The time window in milliseconds within which successive typing and formatting changes are grouped into a single undo entry. All other changes are recorded individually regardless of this interval.
+</ParamField>
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.undo.interval = 2000  // group changes within 2 seconds
+})
+```
+
+---
+
+## `Trix.config.input`
+
+Controls how Trix handles keyboard and composition input.
+
+<ParamField path="level2Enabled" type="boolean" default="true">
+  When `true` (and the browser supports Input Events Level 2), Trix uses `beforeinput` events for more reliable input handling. Set to `false` to fall back to Level 0 input handling.
+</ParamField>
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.input.level2Enabled = false  // force legacy input handling
+})
+```
+
+---
+
+## `Trix.config.parser`
+
+Controls how Trix parses HTML tables when converting pasted or imported HTML.
+
+<ParamField path="removeBlankTableCells" type="boolean" default="false">
+  When `true`, empty `<td>` and `<th>` elements are omitted from the plain-text representation of table content.
+</ParamField>
+
+<ParamField path="tableCellSeparator" type="string" default='" | "'>
+  String used to join adjacent table cells when converting a table row to plain text.
+</ParamField>
+
+<ParamField path="tableRowSeparator" type="string" default='"\n"'>
+  String used to separate table rows when converting table content to plain text.
+</ParamField>
+
+```javascript
+document.addEventListener("trix-before-initialize", () => {
+  Trix.config.parser.tableCellSeparator = "\t"  // TSV-style output
+})
+```

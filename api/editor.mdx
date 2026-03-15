@@ -1,0 +1,542 @@
+---
+title: Editor
+description: The Trix.Editor interface for programmatic control of a Trix editor instance.
+---
+
+Every `<trix-editor>` element exposes a `Trix.Editor` instance through its `editor` property. Use this interface to load content, manipulate text, manage selection, apply formatting, and control undo history.
+
+```javascript
+const element = document.querySelector("trix-editor")
+const editor = element.editor  // Trix.Editor instance
+```
+
+## Document methods
+
+These methods load content into or retrieve content from the editor.
+
+### `loadDocument(document)`
+
+Replaces the editor's current document with the given `Trix.Document` instance. Resets the selection to position `[0, 0]` and clears undo history.
+
+<ParamField body="document" type="Trix.Document" required>
+  The document instance to load. Obtain one from `editor.getDocument()` or by deserializing with `Document.fromJSON()`.
+</ParamField>
+
+```javascript
+const doc = editor.getDocument()
+editor.loadDocument(doc)
+```
+
+### `loadHTML(html)`
+
+Parses an HTML string into a Trix document and loads it into the editor. Any HTML that cannot be represented in the Trix document model is discarded during conversion.
+
+<ParamField body="html" type="string" default='""'>
+  The HTML string to parse and load. Defaults to an empty string.
+</ParamField>
+
+```javascript
+editor.loadHTML("<h1>Hello</h1><p>World</p>")
+```
+
+### `loadJSON(snapshot)`
+
+Restores editor state from a previously serialized snapshot object. This is the recommended way to restore persisted editor state.
+
+<ParamField body="snapshot" type="object" required>
+  A snapshot object with the following shape:
+  <Expandable title="properties">
+    <ResponseField name="document" type="object" required>
+      Serialized document data (the JSON-encoded block list).
+    </ResponseField>
+    <ResponseField name="selectedRange" type="number[]" required>
+      Two-element array `[start, end]` representing the selection to restore.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+```javascript
+// Save editor state
+localStorage["editorState"] = JSON.stringify(element.editor)
+
+// Restore editor state
+editor.loadJSON(JSON.parse(localStorage["editorState"]))
+```
+
+### `loadSnapshot(snapshot)`
+
+Loads a snapshot object directly, bypassing JSON deserialization. The `document` field must already be a `Trix.Document` instance. Also resets undo history.
+
+<ParamField body="snapshot" type="object" required>
+  An object with a `document` (`Trix.Document`) and a `selectedRange` (`number[]`).
+</ParamField>
+
+```javascript
+const snapshot = editor.getSnapshot()
+editor.loadSnapshot(snapshot)
+```
+
+### `getDocument()`
+
+Returns the editor's current document.
+
+<ResponseField name="returns" type="Trix.Document">
+  The current document instance. Documents are immutable; each edit replaces the document with a new one.
+</ResponseField>
+
+```javascript
+const doc = editor.getDocument()
+doc.toString()  // plain text content
+```
+
+### `getSelectedDocument()`
+
+Returns a new `Trix.Document` containing only the content within the current selection.
+
+<ResponseField name="returns" type="Trix.Document">
+  A document representing the currently selected content.
+</ResponseField>
+
+```javascript
+editor.setSelectedRange([0, 5])
+const selectedDoc = editor.getSelectedDocument()
+```
+
+### `getSnapshot()`
+
+Returns a snapshot of the current editor state, suitable for serialization.
+
+<ResponseField name="returns" type="object">
+  An object with `document` (Trix.Document) and `selectedRange` (number[]).
+</ResponseField>
+
+```javascript
+const snapshot = editor.getSnapshot()
+// snapshot.document — the current Trix.Document
+// snapshot.selectedRange — [start, end]
+```
+
+### `toJSON()`
+
+Aliases `getSnapshot()`. Called automatically by `JSON.stringify`.
+
+<ResponseField name="returns" type="object">
+  Same object as `getSnapshot()`.
+</ResponseField>
+
+```javascript
+const json = JSON.stringify(element.editor)
+// '{"document":[...],"selectedRange":[0,0]}'
+```
+
+---
+
+## Text insertion methods
+
+All insertion methods replace any currently selected text before inserting at the start position of the selection. Use `setSelectedRange` first to control where insertion occurs.
+
+### `insertString(string)`
+
+Inserts plain, unformatted text at the current selection.
+
+<ParamField body="string" type="string" required>
+  The plain text to insert.
+</ParamField>
+
+```javascript
+// Insert "Hello" at the beginning of the document
+editor.setSelectedRange([0, 0])
+editor.insertString("Hello")
+```
+
+### `insertHTML(html)`
+
+Converts an HTML string to the Trix document model and inserts it at the current selection. Formatting that Trix does not support is discarded.
+
+<ParamField body="html" type="string" required>
+  The HTML string to convert and insert.
+</ParamField>
+
+```javascript
+// Insert bold text at the beginning of the document
+editor.setSelectedRange([0, 0])
+editor.insertHTML("<strong>Hello</strong>")
+```
+
+### `insertText(text)`
+
+Inserts a `Trix.Text` object at the current selection.
+
+<ParamField body="text" type="Trix.Text" required>
+  The Text object to insert.
+</ParamField>
+
+### `insertDocument(document)`
+
+Inserts a `Trix.Document` at the current selection.
+
+<ParamField body="document" type="Trix.Document" required>
+  The document to insert.
+</ParamField>
+
+### `insertFile(file)`
+
+Inserts a DOM `File` object as a pending attachment at the current selection. Trix displays the file as an attachment while you upload it remotely.
+
+<ParamField body="file" type="File" required>
+  A DOM File object, for example from an `<input type="file">` element.
+</ParamField>
+
+```javascript
+const file = document.querySelector("input[type=file]").files[0]
+editor.insertFile(file)
+```
+
+### `insertFiles(files)`
+
+Inserts multiple `File` objects as pending attachments.
+
+<ParamField body="files" type="File[]" required>
+  An array or FileList of DOM File objects.
+</ParamField>
+
+### `insertAttachment(attachment)`
+
+Inserts a `Trix.Attachment` object at the current selection. Use this to insert content attachments (self-contained HTML units).
+
+<ParamField body="attachment" type="Trix.Attachment" required>
+  The attachment to insert.
+</ParamField>
+
+```javascript
+const attachment = new Trix.Attachment({ content: '<span class="mention">@trix</span>' })
+editor.insertAttachment(attachment)
+```
+
+### `insertAttachments(attachments)`
+
+Inserts multiple `Trix.Attachment` objects.
+
+<ParamField body="attachments" type="Trix.Attachment[]" required>
+  An array of Attachment objects to insert.
+</ParamField>
+
+### `insertLineBreak()`
+
+Inserts a line break at the current selection. Functionally equivalent to pressing the Return key.
+
+```javascript
+editor.insertString("Hello")
+editor.insertLineBreak()
+// Editor now contains "Hello\n"
+```
+
+### `deleteInDirection(direction)`
+
+Deletes text relative to the current selection. When the selection is collapsed, this simulates pressing Backspace or Delete. When a range is selected, deletes all selected text.
+
+<ParamField body="direction" type="string" required>
+  Either `"forward"` or `"backward"`.
+</ParamField>
+
+```javascript
+// Simulate Backspace — remove character before cursor
+editor.setSelectedRange([1, 1])
+editor.deleteInDirection("backward")
+
+// Delete the second character in the document
+editor.setSelectedRange([1, 1])
+editor.deleteInDirection("forward")
+
+// Delete the first five characters
+editor.setSelectedRange([0, 4])
+editor.deleteInDirection("forward")
+```
+
+---
+
+## Selection methods
+
+Trix documents are sequences of individually addressable characters. A character's index is a _position_; a start and end position together form a _range_.
+
+### `getSelectedRange()`
+
+Returns the current selection as a two-element array.
+
+<ResponseField name="returns" type="number[]">
+  `[start, end]` — both values are character positions. When the selection is collapsed, start equals end.
+</ResponseField>
+
+```javascript
+editor.getSelectedRange()  // [0, 0]
+```
+
+### `getPosition()`
+
+Returns the start position of the current selection.
+
+<ResponseField name="returns" type="number">
+  The cursor or selection start position.
+</ResponseField>
+
+```javascript
+editor.getPosition()  // 0
+```
+
+### `getClientRectAtPosition(position)`
+
+Returns the pixel coordinates of the character at the given document position. Useful for positioning pop-up menus or tooltips near the cursor.
+
+<ParamField body="position" type="number" required>
+  A character position in the document.
+</ParamField>
+
+<ResponseField name="returns" type="DOMRect">
+  A `DOMRect` with `left`, `top`, `width`, and `height` properties.
+</ResponseField>
+
+```javascript
+const rect = editor.getClientRectAtPosition(0)
+console.log(rect.left, rect.top)  // e.g. 17, 49
+```
+
+### `expandSelectionInDirection(direction)`
+
+Extends the end of the current selection by one character in the given direction.
+
+<ParamField body="direction" type="string" required>
+  Either `"forward"` or `"backward"`.
+</ParamField>
+
+```javascript
+// Expand the selection forward by one character
+editor.expandSelectionInDirection("forward")
+```
+
+### `moveCursorInDirection(direction)`
+
+Moves the cursor one character in the given direction without changing the selection width.
+
+<ParamField body="direction" type="string" required>
+  Either `"forward"` or `"backward"`.
+</ParamField>
+
+```javascript
+editor.moveCursorInDirection("backward")
+```
+
+### `setSelectedRange(range)`
+
+Sets the editor's selection to the given range. Accepts a collapsed position as a number, a single-element array, or a two-element array.
+
+<ParamField body="range" type="number | number[]" required>
+  The range to select. The following are equivalent for collapsed selections:
+  - `1` — position 1
+  - `[1]` — position 1
+  - `[1, 1]` — position 1 to 1
+</ParamField>
+
+```javascript
+// Select the first character
+editor.setSelectedRange([0, 1])
+
+// Collapse cursor at position 5
+editor.setSelectedRange([5, 5])
+editor.setSelectedRange(5)  // equivalent
+```
+
+---
+
+## Attribute methods
+
+Trix represents formatting as named _attributes_ applied across ranges of a document. Inline attributes include `bold`, `italic`, `href`, and `strike`. Block-level attributes include `heading1`, `quote`, `code`, `bullet`, and `number`.
+
+### `activateAttribute(name, value)`
+
+Applies an attribute to the current selection. When the selection is collapsed, the attribute applies to text inserted by subsequent `insertString` calls.
+
+<ParamField body="name" type="string" required>
+  The attribute name, e.g. `"bold"`, `"italic"`, `"href"`.
+</ParamField>
+
+<ParamField body="value" type="any" default="true">
+  The attribute value. Defaults to `true` for toggle attributes. Pass a URL string for `href`.
+</ParamField>
+
+```javascript
+// Apply bold to a selection
+editor.insertString("Hello")
+editor.setSelectedRange([0, 5])
+editor.activateAttribute("bold")
+
+// Apply a link
+editor.insertString("Trix")
+editor.setSelectedRange([0, 4])
+editor.activateAttribute("href", "https://trix-editor.org/")
+
+// Apply italic to text you're about to type
+editor.activateAttribute("italic")
+editor.insertString("This is italic")
+```
+
+### `attributeIsActive(name)`
+
+Returns `true` if the given attribute is currently active at the selection.
+
+<ParamField body="name" type="string" required>
+  The attribute name to check.
+</ParamField>
+
+<ResponseField name="returns" type="boolean">
+  `true` if the attribute is active at the current selection.
+</ResponseField>
+
+```javascript
+editor.activateAttribute("bold")
+editor.attributeIsActive("bold")  // true
+```
+
+### `canActivateAttribute(name)`
+
+Returns `true` if the given attribute can be applied at the current selection.
+
+<ParamField body="name" type="string" required>
+  The attribute name to check.
+</ParamField>
+
+<ResponseField name="returns" type="boolean">
+  `true` if the attribute is valid for the current context.
+</ResponseField>
+
+```javascript
+if (editor.canActivateAttribute("bold")) {
+  editor.activateAttribute("bold")
+}
+```
+
+### `deactivateAttribute(name)`
+
+Removes an attribute from the current selection.
+
+<ParamField body="name" type="string" required>
+  The attribute name to remove.
+</ParamField>
+
+```javascript
+editor.setSelectedRange([2, 4])
+editor.deactivateAttribute("bold")
+```
+
+### `setHTMLAtributeAtPosition(position, name, value)`
+
+Sets an HTML attribute on the block element at the given position. This applies to block-level HTML attributes rather than Trix text attributes.
+
+<Note>
+  Note the intentional typo in the method name: `setHTMLAtributeAtPosition` (single `t` in "Atribute"). This matches the source exactly.
+</Note>
+
+<ParamField body="position" type="number" required>
+  A character position within the block to target.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  The HTML attribute name, e.g. `"dir"`.
+</ParamField>
+
+<ParamField body="value" type="string" required>
+  The HTML attribute value.
+</ParamField>
+
+```javascript
+editor.setHTMLAtributeAtPosition(0, "dir", "rtl")
+```
+
+---
+
+## Nesting level methods
+
+These methods adjust the indentation level of list items, block quotes, and similar nested block elements.
+
+### `canDecreaseNestingLevel()`
+
+Returns `true` if the current block can be moved to a shallower nesting level.
+
+<ResponseField name="returns" type="boolean" />
+
+### `canIncreaseNestingLevel()`
+
+Returns `true` if the current block can be moved to a deeper nesting level.
+
+<ResponseField name="returns" type="boolean" />
+
+### `decreaseNestingLevel()`
+
+Moves the current block to a shallower nesting level. Has no effect if `canDecreaseNestingLevel()` returns `false`.
+
+### `increaseNestingLevel()`
+
+Moves the current block to a deeper nesting level. Has no effect if `canIncreaseNestingLevel()` returns `false`.
+
+```javascript
+editor.activateAttribute("quote")
+editor.increaseNestingLevel()  // double-indented quote
+editor.decreaseNestingLevel()  // back to single-indented
+```
+
+---
+
+## Undo and redo
+
+Trix editors support unlimited undo and redo. Successive typing and formatting changes are consolidated at five-second intervals; all other input changes are recorded individually.
+
+Changes made through the `Editor` interface are **not** automatically recorded as undo entries. Call `recordUndoEntry` before making programmatic changes if you want them to be undoable.
+
+### `canRedo()`
+
+<ResponseField name="returns" type="boolean">
+  `true` if there is a redo entry available.
+</ResponseField>
+
+### `canUndo()`
+
+<ResponseField name="returns" type="boolean">
+  `true` if there is an undo entry available.
+</ResponseField>
+
+### `recordUndoEntry(description, options)`
+
+Saves the current editor state as an undo entry with the given description.
+
+<ParamField body="description" type="string" required>
+  A human-readable label for this undo action, e.g. `"Insert Text"`.
+</ParamField>
+
+<ParamField body="options" type="object">
+  Optional settings for undo consolidation.
+  <Expandable title="properties">
+    <ResponseField name="context" type="any">
+      An arbitrary value used to group related undo entries. Entries with the same context may be consolidated.
+    </ResponseField>
+    <ResponseField name="consolidatable" type="boolean">
+      Whether this entry can be merged with adjacent entries that share the same context.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+```javascript
+editor.recordUndoEntry("Insert Text")
+editor.insertString("Hello")
+```
+
+### `redo()`
+
+Reapplies the most recently undone change. Has no effect if `canRedo()` returns `false`.
+
+### `undo()`
+
+Reverts the most recent change. Has no effect if `canUndo()` returns `false`.
+
+```javascript
+editor.undo()
+editor.redo()
+```

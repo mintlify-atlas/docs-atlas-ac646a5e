@@ -1,0 +1,96 @@
+---
+title: "Contributing to Trix"
+description: "How to contribute to Trix through bug reports, pull requests, and discussions — plus an overview of the project structure and development prerequisites."
+---
+
+Trix is open-source software released under an [MIT-style license](https://github.com/basecamp/trix/blob/main/LICENSE). Contributions are welcome in the form of bug reports, pull requests, or thoughtful discussions.
+
+## Ways to contribute
+
+<CardGroup cols={3}>
+  <Card title="Report a bug" icon="bug" href="https://github.com/basecamp/trix/issues">
+    Open an issue on GitHub. Include the Trix version, browser name and version, operating system, and steps to reproduce.
+  </Card>
+  <Card title="Submit a pull request" icon="code-pull-request" href="https://github.com/basecamp/trix">
+    Fork the repository, make your changes, ensure tests pass, then open a pull request against the `main` branch.
+  </Card>
+  <Card title="Join the discussion" icon="comments" href="https://github.com/basecamp/trix/issues">
+    Share ideas, ask questions, and discuss potential changes in the GitHub issue tracker before writing code.
+  </Card>
+</CardGroup>
+
+## Code of Conduct
+
+Trix follows the [Contributor Covenant Code of Conduct](https://github.com/basecamp/trix/blob/main/CODE_OF_CONDUCT.md). All contributors are expected to:
+
+- Use welcoming and inclusive language
+- Be respectful of differing viewpoints and experiences
+- Gracefully accept constructive criticism
+- Focus on what is best for the community
+- Show empathy towards other community members
+
+Unacceptable behavior includes harassment, trolling, publishing private information without consent, and any conduct that would be inappropriate in a professional setting. Instances of abusive or unacceptable behavior may be reported to the project maintainers:
+
+- **Javan Makhmali** — javan@basecamp.com
+- **Sam Stephenson** — sam@basecamp.com
+
+## Prerequisites
+
+Before contributing, make sure you have the following installed:
+
+- **Node.js** ≥ 18 (the project pins to `18.18.0` via `.node-version`)
+- **Yarn** package manager
+
+<Note>
+  Trix uses Yarn workspaces and lockfile-based installs. Run `yarn install --frozen-lockfile` in CI or when you want to reproduce the exact dependency tree.
+</Note>
+
+## Project structure
+
+The source code lives in `src/trix/`. Here is an overview of the subdirectories:
+
+<AccordionGroup>
+  <Accordion title="config/">
+    Editor configuration objects: toolbar HTML, text attributes, block attributes, key names, CSS class names, language strings, attachment settings, and undo configuration.
+  </Accordion>
+  <Accordion title="controllers/">
+    High-level editor orchestration. The `EditorController` is the main entry point. Separate controllers handle the toolbar, composition, input events (Level 0 and Level 2), and attachment editing.
+  </Accordion>
+  <Accordion title="core/">
+    Shared utilities and constants used throughout the library.
+  </Accordion>
+  <Accordion title="elements/">
+    Custom element definitions — the `<trix-editor>` and `<trix-toolbar>` web components.
+  </Accordion>
+  <Accordion title="filters/">
+    HTML sanitization and transformation filters applied to content on input and output.
+  </Accordion>
+  <Accordion title="models/">
+    The document model: `Document`, `Block`, `Text`, `Attachment`, `Composition`, `Editor`, HTML parser, and related types.
+  </Accordion>
+  <Accordion title="observers/">
+    DOM observers (MutationObserver wrappers) that detect external changes to the editor element.
+  </Accordion>
+  <Accordion title="operations/">
+    Async operations such as file upload handling.
+  </Accordion>
+  <Accordion title="views/">
+    Rendering logic that translates the document model back into DOM nodes displayed in the editor.
+  </Accordion>
+</AccordionGroup>
+
+Tests live in `src/test/` and are split into two categories:
+
+- **`unit/`** — model-level tests (document, block, composition, HTML parser, etc.)
+- **`system/`** — end-to-end browser tests (input, formatting, pasting, attachments, accessibility, etc.)
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Building from source" icon="hammer" href="/contributing/building">
+    Install dependencies, run the build pipeline, and use the development server.
+  </Card>
+  <Card title="Running tests" icon="flask" href="/contributing/testing">
+    Run the test suite headlessly with Playwright, or open tests in a browser for debugging.
+  </Card>
+</CardGroup>

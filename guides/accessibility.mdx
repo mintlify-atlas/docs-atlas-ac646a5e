@@ -1,0 +1,109 @@
+---
+title: "Accessibility"
+description: "Provide accessible names for Trix editors using labels, aria attributes, and understand how Element Internals supports screen readers and form validation."
+---
+
+Like any form control, `<trix-editor>` should have an accessible name so screen readers can identify it. Trix integrates with `<label>` elements and supports `aria-label` and `aria-labelledby` out of the box.
+
+## Labeling with a for/id pair
+
+The recommended approach is to give the editor an `[id]` and reference it from a `<label>` element's `[for]` attribute. This is identical to how you label a `<textarea>`:
+
+```html
+<label for="editor">Post body</label>
+<trix-editor id="editor"></trix-editor>
+```
+
+When the label is clicked, Trix focuses the editor automatically.
+
+## Labeling by wrapping in a label
+
+You can also nest the editor inside a `<label>` element:
+
+```html
+<trix-toolbar id="editor-toolbar"></trix-toolbar>
+<label>
+  Post body
+  <trix-editor toolbar="editor-toolbar"></trix-editor>
+</label>
+```
+
+<Warning>
+  When the `<trix-editor>` is a child of a `<label>`, render the corresponding `<trix-toolbar>` **outside** the `<label>` and wire it up with the `toolbar` attribute. Placing the toolbar inside the label causes the toolbar's buttons to activate the label's click behavior rather than their intended actions.
+</Warning>
+
+## aria-label and aria-labelledby
+
+For cases where a visible `<label>` element is not appropriate — for example, a comment box where the context is implied — use `aria-label` or `aria-labelledby` directly on the editor element:
+
+```html
+<!-- aria-label -->
+<trix-editor aria-label="Comment text"></trix-editor>
+```
+
+```html
+<!-- aria-labelledby referencing a visible heading -->
+<h2 id="reply-heading">Your reply</h2>
+<trix-editor aria-labelledby="reply-heading"></trix-editor>
+```
+
+Trix checks for `aria-label` and `aria-labelledby` before computing the label from associated `<label>` elements. Providing either attribute takes precedence.
+
+## How Trix derives the accessible name automatically
+
+When no `aria-label` or `aria-labelledby` is present, Trix reads the text content of all associated `<label>` elements and sets `aria-label` on the editor to match. This computation runs on connect and again on focus, so dynamically updated label text is reflected.
+
+The editor always has `role="textbox"` set, which correctly identifies it to assistive technologies as a multi-line text input.
+
+## Keyboard navigation
+
+All standard text-editing keyboard shortcuts work inside the editor. Toolbar buttons are reachable via keyboard since each `<button>` element has `tabindex="-1"` (they are skipped in the normal tab order) and Trix handles focus management internally.
+
+Built-in keyboard shortcuts registered with `data-trix-key`:
+
+| Shortcut | Action |
+|---|---|
+| <kbd>Meta/Ctrl</kbd>+<kbd>B</kbd> | Bold |
+| <kbd>Meta/Ctrl</kbd>+<kbd>I</kbd> | Italic |
+| <kbd>Meta/Ctrl</kbd>+<kbd>K</kbd> | Link |
+| <kbd>Meta/Ctrl</kbd>+<kbd>Z</kbd> | Undo |
+| <kbd>Meta/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Redo |
+
+## Disabled state and screen readers
+
+When the `[disabled]` attribute is set, `contenteditable` is removed from the editor element, preventing keyboard focus and editing. The element matches the `:disabled` CSS pseudo-class:
+
+```css
+trix-editor:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+```
+
+In browsers that support Element Internals, disabling via a parent `<fieldset disabled>` or the `form` element also fires `formDisabledCallback` internally, keeping the editor's disabled state in sync with the surrounding form.
+
+## Required fields and constraint validation
+
+Mark an editor as required with the `[required]` attribute. When the editor is empty, it will be invalid and browsers will block form submission with a native validation tooltip:
+
+```html
+<label for="body">Post body</label>
+<input id="body-input" type="hidden" name="body">
+<trix-editor id="body" input="body-input" required></trix-editor>
+```
+
+Constraint validation properties are available directly on the element:
+
+```javascript
+const editor = document.querySelector("trix-editor")
+
+editor.validity.valueMissing  // true when required and empty
+editor.validity.valid         // overall validity
+editor.willValidate           // true when the element participates in validation
+editor.checkValidity()        // returns boolean, fires "invalid" event if not valid
+editor.reportValidity()       // returns boolean, shows browser validation UI
+```
+
+<Note>
+  Constraint validation (`validity`, `required`, `setCustomValidity`, etc.) requires Element Internals support. In browsers that do not support Element Internals, these properties log a console warning and return safe default values.
+</Note>

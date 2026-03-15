@@ -1,0 +1,129 @@
+---
+title: "Installation"
+description: "Add Trix to your project via CDN, npm, yarn, or pnpm. Includes setup for ESM imports and UMD script tags."
+---
+
+Trix comes bundled in ESM and UMD formats and works with any asset packaging system. Choose the method that fits your project.
+
+## CDN (unpkg)
+
+The fastest way to get started is to load Trix directly from unpkg in the `<head>` of your page. No build step required.
+
+```html
+<head>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.1.17/dist/trix.css">
+  <script type="text/javascript" src="https://unpkg.com/trix@2.1.17/dist/trix.umd.min.js"></script>
+</head>
+```
+
+<Note>
+  `trix.css` includes default styles for the Trix toolbar, editor, and attachments. Skip this file if you prefer to define these styles yourself.
+</Note>
+
+Once the script loads, Trix registers the `<trix-editor>` and `<trix-toolbar>` custom elements automatically. You can place `<trix-editor>` anywhere in your HTML and it will initialize itself.
+
+## Package manager
+
+<Steps>
+  <Step title="Install the package">
+    Install Trix from npm:
+
+    <CodeGroup>
+
+    ```bash npm
+    npm install trix
+    ```
+
+    ```bash yarn
+    yarn add trix
+    ```
+
+    ```bash pnpm
+    pnpm add trix
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Import in your application">
+    Import Trix as an ES module. The default export is the `Trix` object, which exposes the full API including `Trix.config`, `Trix.models`, and `Trix.elements`.
+
+    ```javascript
+    import Trix from "trix"
+    ```
+
+    Importing Trix also registers the `<trix-editor>` and `<trix-toolbar>` custom elements on the global `customElements` registry via a `setTimeout(start, 0)` call, so registration happens after your module code runs.
+  </Step>
+
+  <Step title="Include the stylesheet">
+    Import the bundled CSS from the package's `dist/` directory:
+
+    ```javascript
+    import "trix/dist/trix.css"
+    ```
+
+    Or reference it in your HTML directly:
+
+    ```html
+    <link rel="stylesheet" href="node_modules/trix/dist/trix.css">
+    ```
+
+    <Tip>
+      Most bundlers (Vite, webpack, Parcel) will process the CSS import alongside your JavaScript if your configuration supports CSS imports.
+    </Tip>
+  </Step>
+</Steps>
+
+## ESM vs UMD
+
+The package exposes both formats:
+
+| Field in package.json | File | Format |
+|---|---|---|
+| `module` | `dist/trix.esm.min.js` | ES module — use with bundlers |
+| `main` | `dist/trix.umd.min.js` | UMD — use with `<script>` tags |
+
+For a UMD script tag without a CDN:
+
+```html
+<script type="text/javascript" src="node_modules/trix/dist/trix.umd.min.js"></script>
+```
+
+The UMD build sets `window.Trix` globally, so you can access `Trix.config`, `Trix.Editor`, and other exports without an import statement.
+
+## Configuring Trix before initialization
+
+If you need to modify `Trix.config` before the editor initializes, listen for the `trix-before-initialize` event. This event fires when a `<trix-editor>` element connects to the DOM, before Trix installs its `editor` object.
+
+```javascript
+import Trix from "trix"
+
+document.addEventListener("trix-before-initialize", () => {
+  // Modify Trix.config here before any editor initializes
+  Trix.config.dompurify.ADD_TAGS = ["my-custom-tag"]
+})
+```
+
+<Warning>
+  Changes to `Trix.config` made after `trix-initialize` fires will not affect editors that have already initialized. Use `trix-before-initialize` for configuration that must be in place before the editor starts.
+</Warning>
+
+## What trix.css styles
+
+The bundled stylesheet covers three areas:
+
+- **Toolbar** — button groups, icons, link dialog, and active states
+- **Editor** — block display, placeholder text, image sizing, and cursor targets for attachment positioning
+- **Content** — the `.trix-content` class, which styles formatted output including bulleted and numbered lists, code blocks, block quotes, and embedded attachments
+
+The `.trix-content` class is meant to be applied both to `<trix-editor>` during editing and to any element that renders stored Trix HTML for display:
+
+```html
+<!-- During editing -->
+<trix-editor class="trix-content"></trix-editor>
+
+<!-- When displaying saved content -->
+<div class="trix-content">Stored content here</div>
+```
+
+The stylesheet is intentionally minimal. Copy the `.trix-content` rules into your own CSS and customize them to match your application's design.

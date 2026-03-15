@@ -1,0 +1,268 @@
+---
+title: "<trix-editor>"
+description: The trix-editor custom element — the rich text editing surface that integrates with forms, labels, and the browser's constraint validation API.
+---
+
+The `<trix-editor>` element is the primary interface for embedding a Trix rich text editor in your page. It is a form-associated custom element that manages its own toolbar, syncs content to a hidden `<input>`, and emits DOM events as editing occurs.
+
+```html
+<trix-editor></trix-editor>
+```
+
+When the element connects to the DOM, Trix automatically inserts a `<trix-toolbar>` immediately before it and creates a hidden `<input type="hidden">` after it to hold the HTML value for form submission.
+
+## HTML attributes
+
+<ParamField path="input" type="string">
+  The `id` of an existing `<input type="hidden">` element in the same document. When set, Trix syncs the editor's HTML content into that input on every change, making the value available for form submission. When absent, Trix creates its own hidden input (unless `willCreateInput` is `false`).
+
+  ```html
+  <input id="content" type="hidden" name="body" value="">
+  <trix-editor input="content"></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="toolbar" type="string">
+  The `id` of a `<trix-toolbar>` element to associate with this editor. Use this when you want to place the toolbar in a different part of the DOM rather than having it auto-inserted immediately before the editor.
+
+  ```html
+  <trix-toolbar id="my-toolbar"></trix-toolbar>
+  <div class="spacer"></div>
+  <trix-editor toolbar="my-toolbar"></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="autofocus" type="boolean">
+  Focuses the editor when it connects to the DOM, following the same behavior as the native `autofocus` attribute on form controls. Only takes effect if no other element on the page already has focus.
+
+  ```html
+  <trix-editor autofocus></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="placeholder" type="string">
+  Text displayed inside the editor when it is empty. Rendered via the CSS `::before` pseudo-element using `content: attr(placeholder)`.
+
+  ```html
+  <trix-editor placeholder="Write something…"></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="disabled" type="boolean">
+  Disables the editor. A disabled editor is not editable, cannot receive focus, and its value is excluded from form submission. The element matches the `:disabled` CSS pseudo-class when this attribute is present.
+
+  ```html
+  <trix-editor disabled></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="required" type="boolean">
+  Marks the editor as required for constraint validation. The element is invalid when its value is empty. Requires browser support for the Element Internals API.
+
+  ```html
+  <trix-editor required></trix-editor>
+  ```
+</ParamField>
+
+<ParamField path="name" type="string">
+  The form field name used for submission when the editor operates without an associated `<input type="hidden">` element (i.e., when `willCreateInput` is `false` and no `input` attribute is set). Requires browser support for the Element Internals API.
+
+  ```html
+  <trix-editor name="body"></trix-editor>
+  ```
+</ParamField>
+
+## JavaScript properties
+
+### `editor`
+
+The `Trix.Editor` instance attached to this element. Available after the `trix-initialize` event fires. Use this to load content, manipulate text, manage selection, and apply formatting programmatically.
+
+```javascript
+const element = document.querySelector("trix-editor")
+element.addEventListener("trix-initialize", () => {
+  const editor = element.editor  // Trix.Editor
+})
+```
+
+### `value`
+
+Gets or sets the editor's HTML content as a string. Reading this property returns the current HTML stored in the associated hidden input (or the element's own internal form value when no input is linked). Setting it loads the given HTML into the editor.
+
+```javascript
+// Read
+console.log(element.value)  // "<h1>Hello</h1>"
+
+// Write
+element.value = "<strong>New content</strong>"
+```
+
+### `disabled`
+
+Boolean property that mirrors the `[disabled]` attribute. Setting this to `true` removes the `contenteditable` attribute and excludes the element's value from form submission.
+
+```javascript
+element.disabled = true   // disable
+element.disabled = false  // re-enable
+```
+
+### `required`
+
+Boolean property that mirrors the `[required]` attribute. When `true`, the editor is invalid if its value is empty.
+
+```javascript
+element.required = true
+console.log(element.validity.valueMissing)  // true when empty
+```
+
+### `validity`
+
+A [`ValidityState`](https://developer.mozilla.org/en-US/docs/Web/API/ValidityState) object describing the current validation state of the element. Requires browser support for the Element Internals API; returns `null` in unsupported browsers.
+
+```javascript
+const editor = document.querySelector("trix-editor[required]")
+console.log(editor.validity.valid)         // false when empty
+console.log(editor.validity.valueMissing)  // true when empty
+```
+
+### `willCreateInput`
+
+Boolean flag that controls whether the editor automatically creates and inserts an `<input type="hidden">` element when none is linked via the `input` attribute. Defaults to `true`. Set this to `false` in a `trix-before-initialize` handler to opt out of the auto-created input.
+
+```javascript
+document.addEventListener("trix-before-initialize", (event) => {
+  event.target.willCreateInput = false
+})
+```
+
+<Warning>
+  When `willCreateInput` is `false`, the editor's value is not included in form submissions unless the element has a `[name]` attribute. Set `[name]` to the value the hidden input would have had.
+</Warning>
+
+### `formAssociated` (static)
+
+Class-level static boolean indicating whether `<trix-editor>` elements participate in the browser's form association mechanism via Element Internals. Defaults to `true` in browsers that support `ElementInternals`, `false` otherwise.
+
+You can explicitly opt out of Element Internals integration:
+
+```javascript
+import Trix from "trix"
+
+Trix.elements.TrixEditorElement.formAssociated = false
+```
+
+## Methods
+
+### `checkValidity()`
+
+Returns `true` if the element's value satisfies its constraints (`required`, custom validity), or `false` otherwise. Fires an `invalid` event when the element is invalid. Requires Element Internals support.
+
+```javascript
+if (!element.checkValidity()) {
+  console.log("Editor is invalid")
+}
+```
+
+### `reportValidity()`
+
+Same as `checkValidity()`, but also shows the browser's native validation UI (tooltip, focus) when the element is invalid.
+
+```javascript
+form.addEventListener("submit", (event) => {
+  if (!element.reportValidity()) {
+    event.preventDefault()
+  }
+})
+```
+
+### `setCustomValidity(message)`
+
+Sets a custom validation error message. When `message` is a non-empty string, the element is marked invalid with that message. Pass an empty string to clear the custom error and restore normal validation.
+
+<ParamField path="message" type="string" required>
+  The validation error message to display. Pass `""` to clear any existing custom error.
+</ParamField>
+
+```javascript
+document.addEventListener("trix-change", (event) => {
+  const el = event.target
+  const tooShort = el.editor.getDocument().toString().trim().length < 10
+
+  el.setCustomValidity(tooShort ? "Content must be at least 10 characters." : "")
+})
+```
+
+## Form integration
+
+`<trix-editor>` is a form-associated custom element. It works inside `<form>` elements the same way native inputs do.
+
+**With an explicit hidden input:**
+
+```html
+<form method="post" action="/posts">
+  <input id="body" type="hidden" name="body">
+  <trix-editor input="body"></trix-editor>
+  <button type="submit">Save</button>
+</form>
+```
+
+**With Element Internals (no hidden input):**
+
+```html
+<form method="post" action="/posts">
+  <trix-editor name="body"></trix-editor>
+  <button type="submit">Save</button>
+</form>
+```
+
+```javascript
+document.addEventListener("trix-before-initialize", (event) => {
+  event.target.willCreateInput = false
+})
+```
+
+**With pre-populated content:**
+
+```html
+<form>
+  <input id="body" type="hidden" name="body" value="<h1>Stored content</h1>">
+  <trix-editor input="body"></trix-editor>
+</form>
+```
+
+## Validation
+
+```javascript
+const editor = document.querySelector("trix-editor[required]")
+
+// Initially empty
+editor.validity.valid         // false
+editor.validity.valueMissing  // true
+editor.matches(":invalid")    // true
+
+// After adding content
+editor.value = "Some content"
+editor.validity.valid         // true
+editor.matches(":valid")      // true
+```
+
+## Events emitted
+
+The `<trix-editor>` element is the `target` for all Trix events. See the [Events reference](/api/events) for the full list with properties and examples.
+
+| Event | When it fires |
+|---|---|
+| `trix-before-initialize` | Before the editor is set up — use to change `Trix.config` |
+| `trix-initialize` | Editor is ready and `element.editor` is available |
+| `trix-change` | Content has changed |
+| `trix-before-render` | Before new content is rendered into the DOM |
+| `trix-before-paste` | Before pasted content is inserted |
+| `trix-paste` | After content is pasted |
+| `trix-selection-change` | Selected range changed |
+| `trix-focus` | Editor gained focus |
+| `trix-blur` | Editor lost focus |
+| `trix-file-accept` | File is about to be attached — call `preventDefault()` to reject |
+| `trix-attachment-add` | Attachment added to document |
+| `trix-attachment-edit` | Attachment edited |
+| `trix-attachment-remove` | Attachment removed from document |
+| `trix-action-invoke` | Custom `x-` toolbar action was clicked |
